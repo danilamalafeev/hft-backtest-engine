@@ -34,6 +34,7 @@ target_compile_features(lob_core INTERFACE cxx_std_20)
 enable_testing()
 
 add_executable(lob_tests
+    src/order_book.cpp
     tests/test_lob.cpp
 )
 
@@ -46,3 +47,10 @@ target_link_libraries(
 
 include(GoogleTest)
 gtest_discover_tests(lob_tests)
+
+add_custom_target(
+    tests
+    COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
+    DEPENDS lob_tests
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+)

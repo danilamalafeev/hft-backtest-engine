@@ -5,9 +5,11 @@
 #include <list>
 #include <map>
 #include <unordered_map>
+#include <vector>
 
 #include "lob/order.hpp"
 #include "lob/price_level.hpp"
+#include "lob/trade.hpp"
 
 namespace lob {
 
@@ -27,8 +29,8 @@ public:
     OrderBook(OrderBook&&) = default;
     OrderBook& operator=(OrderBook&&) = default;
 
-    // Inserts a new order into the relevant side of the book.
-    void add_order(const Order& order);
+    // Matches the incoming order against the opposite side, then rests any residual.
+    [[nodiscard]] std::vector<Trade> process_order(const Order& order);
 
     // Cancels an order by its unique identifier.
     [[nodiscard]] bool cancel_order(std::uint64_t order_id);
@@ -46,6 +48,8 @@ public:
     }
 
 private:
+    void add_resting_order(const Order& order);
+
     BidBook bids_ {};
     AskBook asks_ {};
     OrderIndex order_index_ {};
