@@ -1,0 +1,1 @@
+/usr/bin/c++  -arch arm64 -Wl,-search_paths_first -Wl,-headerpad_max_install_names CMakeFiles/lob_tests.dir/tests/test_lob.cpp.o -o lob_tests  lib/libgtest_main.a lib/libgtest.a

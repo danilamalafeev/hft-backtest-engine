@@ -1,0 +1,17 @@
+{
+  "tests": 1,
+  "name": "AllTests",
+  "testsuites": [
+    {
+      "name": "OrderBookTest",
+      "tests": 1,
+      "testsuite": [
+        {
+          "name": "InitializesSuccessfully",
+          "file": "\/Users\/danilamalafeev\/Documents\/New project\/tests\/test_lob.cpp",
+          "line": 7
+        }
+      ]
+    }
+  ]
+}

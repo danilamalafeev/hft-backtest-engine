@@ -1,0 +1,32 @@
+[
+{
+  "directory": "/Users/danilamalafeev/Documents/New project/build",
+  "command": "/usr/bin/c++  -I\"/Users/danilamalafeev/Documents/New project/include\" -isystem \"/Users/danilamalafeev/Documents/New project/build/_deps/googletest-src/googletest/include\" -isystem \"/Users/danilamalafeev/Documents/New project/build/_deps/googletest-src/googletest\" -std=c++20 -arch arm64 -o CMakeFiles/lob_tests.dir/tests/test_lob.cpp.o -c \"/Users/danilamalafeev/Documents/New project/tests/test_lob.cpp\"",
+  "file": "/Users/danilamalafeev/Documents/New project/tests/test_lob.cpp",
+  "output": "CMakeFiles/lob_tests.dir/tests/test_lob.cpp.o"
+},
+{
+  "directory": "/Users/danilamalafeev/Documents/New project/build/_deps/googletest-build/googlemock",
+  "command": "/usr/bin/c++  -I\"/Users/danilamalafeev/Documents/New project/build/_deps/googletest-src/googlemock/include\" -I\"/Users/danilamalafeev/Documents/New project/build/_deps/googletest-src/googlemock\" -isystem \"/Users/danilamalafeev/Documents/New project/build/_deps/googletest-src/googletest/include\" -isystem \"/Users/danilamalafeev/Documents/New project/build/_deps/googletest-src/googletest\" -std=c++20 -arch arm64  -DGTEST_HAS_PTHREAD=1   -o CMakeFiles/gmock.dir/src/gmock-all.cc.o -c \"/Users/danilamalafeev/Documents/New project/build/_deps/googletest-src/googlemock/src/gmock-all.cc\"",
+  "file": "/Users/danilamalafeev/Documents/New project/build/_deps/googletest-src/googlemock/src/gmock-all.cc",
+  "output": "_deps/googletest-build/googlemock/CMakeFiles/gmock.dir/src/gmock-all.cc.o"
+},
+{
+  "directory": "/Users/danilamalafeev/Documents/New project/build/_deps/googletest-build/googlemock",
+  "command": "/usr/bin/c++  -isystem \"/Users/danilamalafeev/Documents/New project/build/_deps/googletest-src/googlemock/include\" -isystem \"/Users/danilamalafeev/Documents/New project/build/_deps/googletest-src/googlemock\" -isystem \"/Users/danilamalafeev/Documents/New project/build/_deps/googletest-src/googletest/include\" -isystem \"/Users/danilamalafeev/Documents/New project/build/_deps/googletest-src/googletest\" -std=c++20 -arch arm64  -DGTEST_HAS_PTHREAD=1   -o CMakeFiles/gmock_main.dir/src/gmock_main.cc.o -c \"/Users/danilamalafeev/Documents/New project/build/_deps/googletest-src/googlemock/src/gmock_main.cc\"",
+  "file": "/Users/danilamalafeev/Documents/New project/build/_deps/googletest-src/googlemock/src/gmock_main.cc",
+  "output": "_deps/googletest-build/googlemock/CMakeFiles/gmock_main.dir/src/gmock_main.cc.o"
+},
+{
+  "directory": "/Users/danilamalafeev/Documents/New project/build/_deps/googletest-build/googletest",
+  "command": "/usr/bin/c++  -I\"/Users/danilamalafeev/Documents/New project/build/_deps/googletest-src/googletest/include\" -I\"/Users/danilamalafeev/Documents/New project/build/_deps/googletest-src/googletest\" -std=c++20 -arch arm64  -DGTEST_HAS_PTHREAD=1   -o CMakeFiles/gtest.dir/src/gtest-all.cc.o -c \"/Users/danilamalafeev/Documents/New project/build/_deps/googletest-src/googletest/src/gtest-all.cc\"",
+  "file": "/Users/danilamalafeev/Documents/New project/build/_deps/googletest-src/googletest/src/gtest-all.cc",
+  "output": "_deps/googletest-build/googletest/CMakeFiles/gtest.dir/src/gtest-all.cc.o"
+},
+{
+  "directory": "/Users/danilamalafeev/Documents/New project/build/_deps/googletest-build/googletest",
+  "command": "/usr/bin/c++  -isystem \"/Users/danilamalafeev/Documents/New project/build/_deps/googletest-src/googletest/include\" -isystem \"/Users/danilamalafeev/Documents/New project/build/_deps/googletest-src/googletest\" -std=c++20 -arch arm64  -DGTEST_HAS_PTHREAD=1   -o CMakeFiles/gtest_main.dir/src/gtest_main.cc.o -c \"/Users/danilamalafeev/Documents/New project/build/_deps/googletest-src/googletest/src/gtest_main.cc\"",
+  "file": "/Users/danilamalafeev/Documents/New project/build/_deps/googletest-src/googletest/src/gtest_main.cc",
+  "output": "_deps/googletest-build/googletest/CMakeFiles/gtest_main.dir/src/gtest_main.cc.o"
+}
+]
