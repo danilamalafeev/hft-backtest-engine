@@ -10,6 +10,7 @@ struct Trade {
     std::uint64_t seller_id {};
     double price {};
     std::uint64_t quantity {};
+    std::uint64_t timestamp {};
 };
 
 }  // namespace lob

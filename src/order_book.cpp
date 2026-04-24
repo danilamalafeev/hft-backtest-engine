@@ -93,6 +93,7 @@ std::vector<Trade> OrderBook::process_order(const Order& order) {
                 .seller_id = resting_order_it->id,
                 .price = resting_order_it->price,
                 .quantity = executed_quantity,
+                .timestamp = incoming_order.timestamp,
             });
 
             incoming_order.quantity -= executed_quantity;
@@ -122,6 +123,7 @@ std::vector<Trade> OrderBook::process_order(const Order& order) {
                 .seller_id = incoming_order.id,
                 .price = resting_order_it->price,
                 .quantity = executed_quantity,
+                .timestamp = incoming_order.timestamp,
             });
 
             incoming_order.quantity -= executed_quantity;

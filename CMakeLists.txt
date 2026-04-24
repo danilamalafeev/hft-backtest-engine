@@ -34,6 +34,7 @@ FetchContent_MakeAvailable(googletest)
 FetchContent_MakeAvailable(googlebenchmark)
 
 add_library(lob_core STATIC
+    src/csv_parser.cpp
     src/order_book.cpp
 )
 target_include_directories(
@@ -71,6 +72,16 @@ target_link_libraries(
 if(APPLE)
     target_link_options(lob_benchmarks PRIVATE LINKER:-no_warn_duplicate_libraries)
 endif()
+
+add_executable(lob_backtest
+    src/main_backtest.cpp
+)
+
+target_link_libraries(
+    lob_backtest
+    PRIVATE
+        lob_core
+)
 
 include(GoogleTest)
 gtest_discover_tests(lob_tests)
