@@ -32,7 +32,7 @@ TEST(OrderBookTest, ProcessOrderRestsBuyOrderWhenBookDoesNotCross) {
     ASSERT_NE(bid_level_it, order_book.bids().end());
     ASSERT_EQ(bid_level_it->second.orders.size(), 1U);
     EXPECT_EQ(bid_level_it->second.orders.back().id, order.id);
-    EXPECT_EQ(order_book.order_index().at(order.id)->id, order.id);
+    EXPECT_EQ(order_book.order_index().at(order.id).order_iterator->id, order.id);
 }
 
 TEST(OrderBookTest, ProcessOrderRestsSellOrderWhenBookDoesNotCross) {
@@ -56,7 +56,7 @@ TEST(OrderBookTest, ProcessOrderRestsSellOrderWhenBookDoesNotCross) {
     ASSERT_NE(ask_level_it, order_book.asks().end());
     ASSERT_EQ(ask_level_it->second.orders.size(), 1U);
     EXPECT_EQ(ask_level_it->second.orders.back().id, order.id);
-    EXPECT_EQ(order_book.order_index().at(order.id)->id, order.id);
+    EXPECT_EQ(order_book.order_index().at(order.id).order_iterator->id, order.id);
 }
 
 TEST(OrderBookTest, ProcessOrderMatchesCrossSpreadUsingPriceTimePriority) {

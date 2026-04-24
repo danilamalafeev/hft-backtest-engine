@@ -20,21 +20,32 @@ FetchContent_Declare(
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
 
-set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-FetchContent_MakeAvailable(googletest)
+FetchContent_Declare(
+    googlebenchmark
+    URL https://github.com/google/benchmark/archive/refs/tags/v1.9.1.zip
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+)
 
-add_library(lob_core INTERFACE)
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+set(BENCHMARK_ENABLE_GTEST_TESTS OFF CACHE BOOL "" FORCE)
+set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "" FORCE)
+set(BENCHMARK_ENABLE_INSTALL OFF CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(googletest)
+FetchContent_MakeAvailable(googlebenchmark)
+
+add_library(lob_core STATIC
+    src/order_book.cpp
+)
 target_include_directories(
     lob_core
-    INTERFACE
+    PUBLIC
         ${PROJECT_SOURCE_DIR}/include
 )
-target_compile_features(lob_core INTERFACE cxx_std_20)
+target_compile_features(lob_core PUBLIC cxx_std_20)
 
 enable_testing()
 
 add_executable(lob_tests
-    src/order_book.cpp
     tests/test_lob.cpp
 )
 
@@ -44,6 +55,22 @@ target_link_libraries(
         lob_core
         GTest::gtest_main
 )
+
+add_executable(lob_benchmarks
+    benchmarks/bench_order_book.cpp
+)
+
+target_link_libraries(
+    lob_benchmarks
+    PRIVATE
+        lob_core
+        benchmark::benchmark
+        benchmark::benchmark_main
+)
+
+if(APPLE)
+    target_link_options(lob_benchmarks PRIVATE LINKER:-no_warn_duplicate_libraries)
+endif()
 
 include(GoogleTest)
 gtest_discover_tests(lob_tests)

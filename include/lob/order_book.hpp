@@ -18,8 +18,16 @@ public:
     using OrderIterator = std::list<Order>::iterator;
     using BidBook = std::map<double, PriceLevel, std::greater<double>>;
     using AskBook = std::map<double, PriceLevel>;
-    // Direct iterators enable O(1) access to an order node during cancellation.
-    using OrderIndex = std::unordered_map<std::uint64_t, OrderIterator>;
+
+    struct OrderLocation {
+        OrderIterator order_iterator;
+        Side side;
+        BidBook::iterator bid_level_iterator {};
+        AskBook::iterator ask_level_iterator {};
+    };
+
+    // Direct order and price-level iterators remove extra tree lookups during cancellation.
+    using OrderIndex = std::unordered_map<std::uint64_t, OrderLocation>;
 
     OrderBook() = default;
     ~OrderBook() = default;

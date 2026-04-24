@@ -1,5 +1,6 @@
 #include "lob/order_book.hpp"
 
+#include <algorithm>
 #include <iterator>
 #include <stdexcept>
 #include <utility>
@@ -8,34 +9,58 @@
 namespace lob {
 
 void OrderBook::add_resting_order(const Order& order) {
-    const auto [existing_order_it, inserted] = order_index_.try_emplace(order.id, OrderIterator {});
-    if (!inserted) {
+    if (order_index_.contains(order.id)) {
         throw std::invalid_argument("Duplicate order id");
     }
 
-    try {
-        if (order.side == Side::Buy) {
-            auto [level_it, level_inserted] = bids_.try_emplace(order.price);
-            if (level_inserted) {
-                level_it->second.price = order.price;
-            }
-
-            auto& order_queue = level_it->second.orders;
-            order_queue.push_back(order);
-            existing_order_it->second = std::prev(order_queue.end());
-            return;
-        }
-
-        auto [level_it, level_inserted] = asks_.try_emplace(order.price);
+    if (order.side == Side::Buy) {
+        auto [level_it, level_inserted] = bids_.try_emplace(order.price);
         if (level_inserted) {
             level_it->second.price = order.price;
         }
 
         auto& order_queue = level_it->second.orders;
+        try {
+            order_queue.push_back(order);
+            const auto order_it = std::prev(order_queue.end());
+            order_index_.emplace(order.id, OrderLocation {
+                .order_iterator = order_it,
+                .side = Side::Buy,
+                .bid_level_iterator = level_it,
+            });
+        } catch (...) {
+            if (!order_queue.empty()) {
+                order_queue.pop_back();
+            }
+            if (order_queue.empty()) {
+                bids_.erase(level_it);
+            }
+            throw;
+        }
+        return;
+    }
+
+    auto [level_it, level_inserted] = asks_.try_emplace(order.price);
+    if (level_inserted) {
+        level_it->second.price = order.price;
+    }
+
+    auto& order_queue = level_it->second.orders;
+    try {
         order_queue.push_back(order);
-        existing_order_it->second = std::prev(order_queue.end());
+        const auto order_it = std::prev(order_queue.end());
+        order_index_.emplace(order.id, OrderLocation {
+            .order_iterator = order_it,
+            .side = Side::Sell,
+            .ask_level_iterator = level_it,
+        });
     } catch (...) {
-        order_index_.erase(existing_order_it);
+        if (!order_queue.empty()) {
+            order_queue.pop_back();
+        }
+        if (order_queue.empty()) {
+            asks_.erase(level_it);
+        }
         throw;
     }
 }
@@ -125,29 +150,18 @@ bool OrderBook::cancel_order(std::uint64_t order_id) {
         return false;
     }
 
-    const OrderIterator order_it = index_it->second;
-    const Side side = order_it->side;
-    const double price = order_it->price;
-
-    if (side == Side::Buy) {
-        const auto level_it = bids_.find(price);
-        if (level_it == bids_.end()) {
-            throw std::logic_error("Order index references missing bid price level");
-        }
-
-        level_it->second.orders.erase(order_it);
-        if (level_it->second.orders.empty()) {
-            bids_.erase(level_it);
+    const OrderLocation& order_location = index_it->second;
+    if (order_location.side == Side::Buy) {
+        auto& order_queue = order_location.bid_level_iterator->second.orders;
+        order_queue.erase(order_location.order_iterator);
+        if (order_queue.empty()) {
+            bids_.erase(order_location.bid_level_iterator);
         }
     } else {
-        const auto level_it = asks_.find(price);
-        if (level_it == asks_.end()) {
-            throw std::logic_error("Order index references missing ask price level");
-        }
-
-        level_it->second.orders.erase(order_it);
-        if (level_it->second.orders.empty()) {
-            asks_.erase(level_it);
+        auto& order_queue = order_location.ask_level_iterator->second.orders;
+        order_queue.erase(order_location.order_iterator);
+        if (order_queue.empty()) {
+            asks_.erase(order_location.ask_level_iterator);
         }
     }
 
