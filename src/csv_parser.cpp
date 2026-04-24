@@ -1,12 +1,14 @@
 #include "lob/csv_parser.hpp"
 
-#include <charconv>
-#include <cmath>
+#include <cstddef>
 #include <cstdint>
-#include <fstream>
+#include <cerrno>
+#include <fcntl.h>
 #include <stdexcept>
 #include <string>
-#include <string_view>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 #include "lob/order_book.hpp"
 
@@ -15,92 +17,224 @@ namespace {
 
 constexpr std::uint64_t kQuantityScale = 100'000'000U;
 
-[[nodiscard]] std::string_view Trim(std::string_view value) {
-    while (!value.empty() && (value.front() == ' ' || value.front() == '\t' || value.front() == '\r')) {
-        value.remove_prefix(1);
+class MappedFile {
+public:
+    explicit MappedFile(const std::filesystem::path& file_path) {
+        file_descriptor_ = ::open(file_path.c_str(), O_RDONLY);
+        if (file_descriptor_ == -1) {
+            throw std::runtime_error("Unable to open CSV file: " + file_path.string());
+        }
+
+        struct stat file_stat {};
+        if (::fstat(file_descriptor_, &file_stat) == -1) {
+            const int saved_errno = errno;
+            ::close(file_descriptor_);
+            file_descriptor_ = -1;
+            throw std::runtime_error("Unable to stat CSV file: " + std::to_string(saved_errno));
+        }
+
+        size_ = static_cast<std::size_t>(file_stat.st_size);
+        if (size_ == 0U) {
+            return;
+        }
+
+        mapping_ = ::mmap(nullptr, size_, PROT_READ, MAP_PRIVATE, file_descriptor_, 0);
+        if (mapping_ == MAP_FAILED) {
+            const int saved_errno = errno;
+            mapping_ = nullptr;
+            ::close(file_descriptor_);
+            file_descriptor_ = -1;
+            throw std::runtime_error("Unable to mmap CSV file: " + std::to_string(saved_errno));
+        }
     }
 
-    while (!value.empty() && (value.back() == ' ' || value.back() == '\t' || value.back() == '\r')) {
-        value.remove_suffix(1);
+    ~MappedFile() {
+        if (mapping_ != nullptr) {
+            ::munmap(mapping_, size_);
+        }
+
+        if (file_descriptor_ != -1) {
+            ::close(file_descriptor_);
+        }
     }
 
-    return value;
+    MappedFile(const MappedFile&) = delete;
+    MappedFile& operator=(const MappedFile&) = delete;
+    MappedFile(MappedFile&&) = delete;
+    MappedFile& operator=(MappedFile&&) = delete;
+
+    [[nodiscard]] const char* data() const noexcept {
+        return static_cast<const char*>(mapping_);
+    }
+
+    [[nodiscard]] std::size_t size() const noexcept {
+        return size_;
+    }
+
+private:
+    int file_descriptor_ {-1};
+    void* mapping_ {nullptr};
+    std::size_t size_ {0U};
+};
+
+[[nodiscard]] inline bool IsDigit(const char value) noexcept {
+    return value >= '0' && value <= '9';
 }
 
-[[nodiscard]] std::uint64_t ParseUnsigned(std::string_view token, std::uint64_t line_number, const char* field_name) {
-    token = Trim(token);
+[[nodiscard]] inline std::uint64_t ParseUnsignedField(const char*& cursor, const char* end) {
     std::uint64_t value = 0U;
-    const auto* begin = token.data();
-    const auto* end = token.data() + token.size();
-    const auto [parse_end, error_code] = std::from_chars(begin, end, value);
-    if (error_code != std::errc {} || parse_end != end) {
-        throw std::runtime_error(std::string("Invalid ") + field_name + " at line " + std::to_string(line_number));
+    while (cursor < end && IsDigit(*cursor)) {
+        value = (value * 10U) + static_cast<std::uint64_t>(*cursor - '0');
+        ++cursor;
     }
 
     return value;
 }
 
-[[nodiscard]] double ParseDouble(std::string_view token, std::uint64_t line_number, const char* field_name) {
-    token = Trim(token);
-    const std::string buffer {token};
-    std::size_t parsed_characters = 0U;
-    const double value = std::stod(buffer, &parsed_characters);
-    if (parsed_characters != buffer.size()) {
-        throw std::runtime_error(std::string("Invalid ") + field_name + " at line " + std::to_string(line_number));
+[[nodiscard]] inline double ParseDoubleField(const char*& cursor, const char* end) {
+    std::uint64_t integer_part = 0U;
+    while (cursor < end && IsDigit(*cursor)) {
+        integer_part = (integer_part * 10U) + static_cast<std::uint64_t>(*cursor - '0');
+        ++cursor;
+    }
+
+    double value = static_cast<double>(integer_part);
+    if (cursor < end && *cursor == '.') {
+        ++cursor;
+
+        double fractional_scale = 0.1;
+        while (cursor < end && IsDigit(*cursor)) {
+            value += static_cast<double>(*cursor - '0') * fractional_scale;
+            fractional_scale *= 0.1;
+            ++cursor;
+        }
     }
 
     return value;
 }
 
-[[nodiscard]] std::uint64_t ParseScaledQuantity(std::string_view token, std::uint64_t line_number) {
-    const double quantity = ParseDouble(token, line_number, "qty");
-    if (quantity < 0.0) {
-        throw std::runtime_error("Negative qty at line " + std::to_string(line_number));
+[[nodiscard]] inline std::uint64_t ParseScaledQuantityField(const char*& cursor, const char* end) {
+    std::uint64_t integer_part = 0U;
+    while (cursor < end && IsDigit(*cursor)) {
+        integer_part = (integer_part * 10U) + static_cast<std::uint64_t>(*cursor - '0');
+        ++cursor;
     }
 
-    return static_cast<std::uint64_t>(std::llround(quantity * static_cast<double>(kQuantityScale)));
+    std::uint64_t scaled_quantity = integer_part * kQuantityScale;
+    if (cursor < end && *cursor == '.') {
+        ++cursor;
+
+        std::uint64_t multiplier = kQuantityScale / 10U;
+        while (cursor < end && IsDigit(*cursor) && multiplier > 0U) {
+            scaled_quantity += static_cast<std::uint64_t>(*cursor - '0') * multiplier;
+            multiplier /= 10U;
+            ++cursor;
+        }
+
+        while (cursor < end && IsDigit(*cursor)) {
+            ++cursor;
+        }
+    }
+
+    return scaled_quantity;
 }
 
-[[nodiscard]] Side ParseIncomingSide(std::string_view token, std::uint64_t line_number) {
-    token = Trim(token);
-    if (token == "true" || token == "True" || token == "TRUE" || token == "1") {
+[[nodiscard]] inline Side ParseIncomingSideField(const char*& cursor, const char* end) {
+    if (cursor >= end) {
+        throw std::runtime_error("Unexpected end of file while parsing side");
+    }
+
+    const char first_character = *cursor;
+    while (cursor < end && *cursor != ',' && *cursor != '\n' && *cursor != '\r') {
+        ++cursor;
+    }
+
+    if (first_character == 't' || first_character == 'T' || first_character == '1') {
         return Side::Sell;
     }
 
-    if (token == "false" || token == "False" || token == "FALSE" || token == "0") {
+    if (first_character == 'f' || first_character == 'F' || first_character == '0') {
         return Side::Buy;
     }
 
-    throw std::runtime_error("Invalid is_buyer_maker value at line " + std::to_string(line_number));
+    throw std::runtime_error("Invalid is_buyer_maker field");
 }
 
-[[nodiscard]] Order ParseBinanceTradeLine(const std::string& line, std::uint64_t line_number) {
-    const auto first_delimiter = line.find(',');
-    const auto second_delimiter = line.find(',', first_delimiter == std::string::npos ? first_delimiter : first_delimiter + 1U);
-    const auto third_delimiter = line.find(',', second_delimiter == std::string::npos ? second_delimiter : second_delimiter + 1U);
-    const auto fourth_delimiter = line.find(',', third_delimiter == std::string::npos ? third_delimiter : third_delimiter + 1U);
-    const auto fifth_delimiter = line.find(',', fourth_delimiter == std::string::npos ? fourth_delimiter : fourth_delimiter + 1U);
-    const auto sixth_delimiter = line.find(',', fifth_delimiter == std::string::npos ? fifth_delimiter : fifth_delimiter + 1U);
-
-    if (first_delimiter == std::string::npos || second_delimiter == std::string::npos ||
-        third_delimiter == std::string::npos || fourth_delimiter == std::string::npos ||
-        fifth_delimiter == std::string::npos || sixth_delimiter == std::string::npos) {
-        throw std::runtime_error("Malformed Binance CSV row at line " + std::to_string(line_number));
+inline void ExpectComma(const char*& cursor, const char* end) {
+    if (cursor >= end || *cursor != ',') {
+        throw std::runtime_error("Malformed CSV row: expected comma delimiter");
     }
 
-    const std::string_view trade_id_token {line.data(), first_delimiter};
-    const std::string_view price_token {line.data() + first_delimiter + 1U, second_delimiter - first_delimiter - 1U};
-    const std::string_view qty_token {line.data() + second_delimiter + 1U, third_delimiter - second_delimiter - 1U};
-    const std::string_view time_token {line.data() + fourth_delimiter + 1U, fifth_delimiter - fourth_delimiter - 1U};
-    const std::string_view is_buyer_maker_token {line.data() + fifth_delimiter + 1U, sixth_delimiter - fifth_delimiter - 1U};
+    ++cursor;
+}
 
-    Order order {};
-    order.id = ParseUnsigned(trade_id_token, line_number, "trade_id");
-    order.price = ParseDouble(price_token, line_number, "price");
-    order.quantity = ParseScaledQuantity(qty_token, line_number);
-    order.side = ParseIncomingSide(is_buyer_maker_token, line_number);
-    order.timestamp = ParseUnsigned(time_token, line_number, "time");
-    return order;
+inline void SkipField(const char*& cursor, const char* end) noexcept {
+    while (cursor < end && *cursor != ',' && *cursor != '\n' && *cursor != '\r') {
+        ++cursor;
+    }
+}
+
+inline void ConsumeRecordEnd(const char*& cursor, const char* end) {
+    if (cursor < end && *cursor == '\r') {
+        ++cursor;
+    }
+
+    if (cursor < end && *cursor == '\n') {
+        ++cursor;
+    } else if (cursor < end) {
+        throw std::runtime_error("Malformed CSV row: expected newline");
+    }
+}
+
+inline void SkipEmptyLine(const char*& cursor, const char* end) noexcept {
+    if (cursor < end && *cursor == '\r') {
+        ++cursor;
+    }
+
+    if (cursor < end && *cursor == '\n') {
+        ++cursor;
+    }
+}
+
+template <typename Handler>
+std::uint64_t ParseMappedBinanceFile(const std::filesystem::path& file_path, Handler&& handler) {
+    MappedFile mapped_file {file_path};
+    if (mapped_file.size() == 0U) {
+        return 0U;
+    }
+
+    const char* cursor = mapped_file.data();
+    const char* const end = cursor + mapped_file.size();
+
+    std::uint64_t parsed_orders = 0U;
+
+    while (cursor < end) {
+        if (*cursor == '\n' || *cursor == '\r') {
+            SkipEmptyLine(cursor, end);
+            continue;
+        }
+
+        Order order {};
+        order.id = ParseUnsignedField(cursor, end);
+        ExpectComma(cursor, end);
+        order.price = ParseDoubleField(cursor, end);
+        ExpectComma(cursor, end);
+        order.quantity = ParseScaledQuantityField(cursor, end);
+        ExpectComma(cursor, end);
+        SkipField(cursor, end);
+        ExpectComma(cursor, end);
+        order.timestamp = ParseUnsignedField(cursor, end);
+        ExpectComma(cursor, end);
+        order.side = ParseIncomingSideField(cursor, end);
+        ExpectComma(cursor, end);
+        SkipField(cursor, end);
+        ConsumeRecordEnd(cursor, end);
+
+        handler(order);
+        ++parsed_orders;
+    }
+
+    return parsed_orders;
 }
 
 }  // namespace
@@ -110,33 +244,31 @@ std::uint64_t CsvParser::parse_file(const std::filesystem::path& file_path, cons
         throw std::invalid_argument("CSV parser requires a valid order handler");
     }
 
-    std::ifstream input_stream {file_path};
-    if (!input_stream.is_open()) {
-        throw std::runtime_error("Unable to open CSV file: " + file_path.string());
-    }
-
-    std::string line {};
-    std::uint64_t parsed_orders = 0U;
-    std::uint64_t file_line_number = 0U;
-
-    while (std::getline(input_stream, line)) {
-        ++file_line_number;
-        if (line.empty()) {
-            continue;
-        }
-
-        handler(ParseBinanceTradeLine(line, file_line_number));
-        ++parsed_orders;
-    }
-
-    return parsed_orders;
+    return ParseMappedBinanceFile(file_path, [&handler](const Order& order) {
+        handler(order);
+    });
 }
 
 std::uint64_t CsvParser::process_file(const std::filesystem::path& file_path, OrderBook& order_book) const {
-    return parse_file(file_path, [&order_book](const Order& order) {
+    return ParseMappedBinanceFile(file_path, [&order_book](const Order& order) {
         const auto trades = order_book.process_order(order);
         (void)trades;
     });
+}
+
+CsvParser::ReplayStats CsvParser::replay_file(const std::filesystem::path& file_path, OrderBook& order_book) const {
+    ReplayStats replay_stats {};
+
+    replay_stats.orders_processed = ParseMappedBinanceFile(file_path, [&order_book, &replay_stats](const Order& order) {
+        if (replay_stats.first_timestamp == 0U) {
+            replay_stats.first_timestamp = order.timestamp;
+        }
+
+        replay_stats.last_timestamp = order.timestamp;
+        replay_stats.generated_trades += static_cast<std::uint64_t>(order_book.process_order(order).size());
+    });
+
+    return replay_stats;
 }
 
 }  // namespace lob

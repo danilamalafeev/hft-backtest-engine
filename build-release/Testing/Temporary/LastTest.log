@@ -1,0 +1,192 @@
+Start testing: Apr 25 00:20 MSK
+----------------------------------------------------------
+1/7 Testing: OrderBookTest.InitializesSuccessfully
+1/7 Test: OrderBookTest.InitializesSuccessfully
+Command: "/Users/danilamalafeev/Documents/New project/build-release/lob_tests" "--gtest_filter=OrderBookTest.InitializesSuccessfully" "--gtest_also_run_disabled_tests"
+Directory: /Users/danilamalafeev/Documents/New project/build-release
+"OrderBookTest.InitializesSuccessfully" start time: Apr 25 00:20 MSK
+Output:
+----------------------------------------------------------
+Running main() from /Users/danilamalafeev/Documents/New project/build-release/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = OrderBookTest.InitializesSuccessfully
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from OrderBookTest
+[ RUN      ] OrderBookTest.InitializesSuccessfully
+[       OK ] OrderBookTest.InitializesSuccessfully (0 ms)
+[----------] 1 test from OrderBookTest (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+<end of output>
+Test time =   0.00 sec
+----------------------------------------------------------
+Test Passed.
+"OrderBookTest.InitializesSuccessfully" end time: Apr 25 00:20 MSK
+"OrderBookTest.InitializesSuccessfully" time elapsed: 00:00:00
+----------------------------------------------------------
+
+2/7 Testing: OrderBookTest.ProcessOrderRestsBuyOrderWhenBookDoesNotCross
+2/7 Test: OrderBookTest.ProcessOrderRestsBuyOrderWhenBookDoesNotCross
+Command: "/Users/danilamalafeev/Documents/New project/build-release/lob_tests" "--gtest_filter=OrderBookTest.ProcessOrderRestsBuyOrderWhenBookDoesNotCross" "--gtest_also_run_disabled_tests"
+Directory: /Users/danilamalafeev/Documents/New project/build-release
+"OrderBookTest.ProcessOrderRestsBuyOrderWhenBookDoesNotCross" start time: Apr 25 00:20 MSK
+Output:
+----------------------------------------------------------
+Running main() from /Users/danilamalafeev/Documents/New project/build-release/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = OrderBookTest.ProcessOrderRestsBuyOrderWhenBookDoesNotCross
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from OrderBookTest
+[ RUN      ] OrderBookTest.ProcessOrderRestsBuyOrderWhenBookDoesNotCross
+[       OK ] OrderBookTest.ProcessOrderRestsBuyOrderWhenBookDoesNotCross (0 ms)
+[----------] 1 test from OrderBookTest (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+<end of output>
+Test time =   0.00 sec
+----------------------------------------------------------
+Test Passed.
+"OrderBookTest.ProcessOrderRestsBuyOrderWhenBookDoesNotCross" end time: Apr 25 00:20 MSK
+"OrderBookTest.ProcessOrderRestsBuyOrderWhenBookDoesNotCross" time elapsed: 00:00:00
+----------------------------------------------------------
+
+3/7 Testing: OrderBookTest.ProcessOrderRestsSellOrderWhenBookDoesNotCross
+3/7 Test: OrderBookTest.ProcessOrderRestsSellOrderWhenBookDoesNotCross
+Command: "/Users/danilamalafeev/Documents/New project/build-release/lob_tests" "--gtest_filter=OrderBookTest.ProcessOrderRestsSellOrderWhenBookDoesNotCross" "--gtest_also_run_disabled_tests"
+Directory: /Users/danilamalafeev/Documents/New project/build-release
+"OrderBookTest.ProcessOrderRestsSellOrderWhenBookDoesNotCross" start time: Apr 25 00:20 MSK
+Output:
+----------------------------------------------------------
+Running main() from /Users/danilamalafeev/Documents/New project/build-release/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = OrderBookTest.ProcessOrderRestsSellOrderWhenBookDoesNotCross
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from OrderBookTest
+[ RUN      ] OrderBookTest.ProcessOrderRestsSellOrderWhenBookDoesNotCross
+[       OK ] OrderBookTest.ProcessOrderRestsSellOrderWhenBookDoesNotCross (0 ms)
+[----------] 1 test from OrderBookTest (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+<end of output>
+Test time =   0.00 sec
+----------------------------------------------------------
+Test Passed.
+"OrderBookTest.ProcessOrderRestsSellOrderWhenBookDoesNotCross" end time: Apr 25 00:20 MSK
+"OrderBookTest.ProcessOrderRestsSellOrderWhenBookDoesNotCross" time elapsed: 00:00:00
+----------------------------------------------------------
+
+4/7 Testing: OrderBookTest.ProcessOrderMatchesCrossSpreadUsingPriceTimePriority
+4/7 Test: OrderBookTest.ProcessOrderMatchesCrossSpreadUsingPriceTimePriority
+Command: "/Users/danilamalafeev/Documents/New project/build-release/lob_tests" "--gtest_filter=OrderBookTest.ProcessOrderMatchesCrossSpreadUsingPriceTimePriority" "--gtest_also_run_disabled_tests"
+Directory: /Users/danilamalafeev/Documents/New project/build-release
+"OrderBookTest.ProcessOrderMatchesCrossSpreadUsingPriceTimePriority" start time: Apr 25 00:20 MSK
+Output:
+----------------------------------------------------------
+Running main() from /Users/danilamalafeev/Documents/New project/build-release/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = OrderBookTest.ProcessOrderMatchesCrossSpreadUsingPriceTimePriority
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from OrderBookTest
+[ RUN      ] OrderBookTest.ProcessOrderMatchesCrossSpreadUsingPriceTimePriority
+[       OK ] OrderBookTest.ProcessOrderMatchesCrossSpreadUsingPriceTimePriority (0 ms)
+[----------] 1 test from OrderBookTest (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+<end of output>
+Test time =   0.00 sec
+----------------------------------------------------------
+Test Passed.
+"OrderBookTest.ProcessOrderMatchesCrossSpreadUsingPriceTimePriority" end time: Apr 25 00:20 MSK
+"OrderBookTest.ProcessOrderMatchesCrossSpreadUsingPriceTimePriority" time elapsed: 00:00:00
+----------------------------------------------------------
+
+5/7 Testing: OrderBookTest.ProcessOrderRestsResidualQuantityAfterPartialIncomingFill
+5/7 Test: OrderBookTest.ProcessOrderRestsResidualQuantityAfterPartialIncomingFill
+Command: "/Users/danilamalafeev/Documents/New project/build-release/lob_tests" "--gtest_filter=OrderBookTest.ProcessOrderRestsResidualQuantityAfterPartialIncomingFill" "--gtest_also_run_disabled_tests"
+Directory: /Users/danilamalafeev/Documents/New project/build-release
+"OrderBookTest.ProcessOrderRestsResidualQuantityAfterPartialIncomingFill" start time: Apr 25 00:20 MSK
+Output:
+----------------------------------------------------------
+Running main() from /Users/danilamalafeev/Documents/New project/build-release/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = OrderBookTest.ProcessOrderRestsResidualQuantityAfterPartialIncomingFill
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from OrderBookTest
+[ RUN      ] OrderBookTest.ProcessOrderRestsResidualQuantityAfterPartialIncomingFill
+[       OK ] OrderBookTest.ProcessOrderRestsResidualQuantityAfterPartialIncomingFill (0 ms)
+[----------] 1 test from OrderBookTest (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+<end of output>
+Test time =   0.00 sec
+----------------------------------------------------------
+Test Passed.
+"OrderBookTest.ProcessOrderRestsResidualQuantityAfterPartialIncomingFill" end time: Apr 25 00:20 MSK
+"OrderBookTest.ProcessOrderRestsResidualQuantityAfterPartialIncomingFill" time elapsed: 00:00:00
+----------------------------------------------------------
+
+6/7 Testing: OrderBookTest.CancelOrderRemovesEmptyBidPriceLevelAndIndexEntry
+6/7 Test: OrderBookTest.CancelOrderRemovesEmptyBidPriceLevelAndIndexEntry
+Command: "/Users/danilamalafeev/Documents/New project/build-release/lob_tests" "--gtest_filter=OrderBookTest.CancelOrderRemovesEmptyBidPriceLevelAndIndexEntry" "--gtest_also_run_disabled_tests"
+Directory: /Users/danilamalafeev/Documents/New project/build-release
+"OrderBookTest.CancelOrderRemovesEmptyBidPriceLevelAndIndexEntry" start time: Apr 25 00:20 MSK
+Output:
+----------------------------------------------------------
+Running main() from /Users/danilamalafeev/Documents/New project/build-release/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = OrderBookTest.CancelOrderRemovesEmptyBidPriceLevelAndIndexEntry
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from OrderBookTest
+[ RUN      ] OrderBookTest.CancelOrderRemovesEmptyBidPriceLevelAndIndexEntry
+[       OK ] OrderBookTest.CancelOrderRemovesEmptyBidPriceLevelAndIndexEntry (0 ms)
+[----------] 1 test from OrderBookTest (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+<end of output>
+Test time =   0.00 sec
+----------------------------------------------------------
+Test Passed.
+"OrderBookTest.CancelOrderRemovesEmptyBidPriceLevelAndIndexEntry" end time: Apr 25 00:20 MSK
+"OrderBookTest.CancelOrderRemovesEmptyBidPriceLevelAndIndexEntry" time elapsed: 00:00:00
+----------------------------------------------------------
+
+7/7 Testing: OrderBookTest.CancelOrderReturnsFalseForUnknownId
+7/7 Test: OrderBookTest.CancelOrderReturnsFalseForUnknownId
+Command: "/Users/danilamalafeev/Documents/New project/build-release/lob_tests" "--gtest_filter=OrderBookTest.CancelOrderReturnsFalseForUnknownId" "--gtest_also_run_disabled_tests"
+Directory: /Users/danilamalafeev/Documents/New project/build-release
+"OrderBookTest.CancelOrderReturnsFalseForUnknownId" start time: Apr 25 00:20 MSK
+Output:
+----------------------------------------------------------
+Running main() from /Users/danilamalafeev/Documents/New project/build-release/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = OrderBookTest.CancelOrderReturnsFalseForUnknownId
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from OrderBookTest
+[ RUN      ] OrderBookTest.CancelOrderReturnsFalseForUnknownId
+[       OK ] OrderBookTest.CancelOrderReturnsFalseForUnknownId (0 ms)
+[----------] 1 test from OrderBookTest (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+<end of output>
+Test time =   0.00 sec
+----------------------------------------------------------
+Test Passed.
+"OrderBookTest.CancelOrderReturnsFalseForUnknownId" end time: Apr 25 00:20 MSK
+"OrderBookTest.CancelOrderReturnsFalseForUnknownId" time elapsed: 00:00:00
+----------------------------------------------------------
+
+End testing: Apr 25 00:20 MSK
