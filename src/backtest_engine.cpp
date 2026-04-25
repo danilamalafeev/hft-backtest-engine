@@ -1,5 +1,7 @@
 #include "lob/backtest_engine.hpp"
 
+#include <iomanip>
+#include <stdexcept>
 #include <utility>
 
 namespace lob {
@@ -41,6 +43,7 @@ BacktestEngine::Result BacktestEngine::run(const std::filesystem::path& file_pat
     position_ = 0;
     equity_curve_.clear();
     equity_curve_.reserve(config_.equity_curve_reserve);
+    open_trace_log();
 
     strategy_.on_start(*this);
 
@@ -55,18 +58,21 @@ BacktestEngine::Result BacktestEngine::run(const std::filesystem::path& file_pat
         result.replay_stats.generated_trades += static_cast<std::uint64_t>(trade_buffer_.size());
 
         update_snapshot(order.timestamp, order.price);
+        route_trades(trade_buffer_);
         strategy_.on_tick(order_book_, *this);
         sample_equity(order.timestamp);
     });
 
     if (snapshot_.mid_price > 0.0) {
         equity_curve_.push_back(current_equity());
+        write_trace_row(result.replay_stats.last_timestamp, 0, "None");
     }
 
     result.final_cash = cash_;
     result.final_position = position_;
     result.final_mid_price = snapshot_.mid_price;
     result.equity_curve = std::move(equity_curve_);
+    close_trace_log();
     return result;
 }
 
@@ -118,7 +124,6 @@ std::uint64_t BacktestEngine::current_timestamp() const noexcept {
 
 void BacktestEngine::process_market_order(const Order& order) {
     order_book_.process_order(order, trade_buffer_);
-    route_trades(trade_buffer_);
 }
 
 void BacktestEngine::route_trades(const std::vector<Trade>& trades) {
@@ -127,6 +132,10 @@ void BacktestEngine::route_trades(const std::vector<Trade>& trades) {
     for (const Trade& trade : trades) {
         const bool own_buy = is_strategy_order(trade.buyer_id);
         const bool own_sell = is_strategy_order(trade.seller_id);
+
+        if (!own_buy && !own_sell) {
+            write_trace_row(trade.timestamp, 0, "None");
+        }
 
         if (own_buy) {
             pending_fills_.push_back(StrategyFill {
@@ -178,6 +187,7 @@ void BacktestEngine::route_strategy_fill(const StrategyFill& fill) {
     }
 
     strategy_.on_fill(fill, *this);
+    write_trace_row(fill.timestamp, 1, fill.side == Side::Buy ? "Buy" : "Sell");
 }
 
 void BacktestEngine::sample_equity(std::uint64_t timestamp) {
@@ -187,6 +197,7 @@ void BacktestEngine::sample_equity(std::uint64_t timestamp) {
 
     while (timestamp >= next_equity_sample_timestamp_) {
         equity_curve_.push_back(current_equity());
+        write_trace_row(timestamp, 0, "None");
         next_equity_sample_timestamp_ += config_.equity_sample_interval_ms;
     }
 }
@@ -206,6 +217,38 @@ void BacktestEngine::update_snapshot(std::uint64_t timestamp, double fallback_pr
     } else {
         snapshot_.mid_price = fallback_price;
     }
+}
+
+void BacktestEngine::open_trace_log() {
+    if (!config_.trace_enabled) {
+        return;
+    }
+
+    trace_log_.open(config_.trace_path, std::ios::out | std::ios::trunc);
+    if (!trace_log_.is_open()) {
+        throw std::runtime_error("Unable to open trace log: " + config_.trace_path.string());
+    }
+
+    trace_log_ << "timestamp,mid_price,equity,is_bot_trade,trade_side\n";
+    trace_log_ << std::fixed << std::setprecision(8);
+}
+
+void BacktestEngine::close_trace_log() {
+    if (trace_log_.is_open()) {
+        trace_log_.close();
+    }
+}
+
+void BacktestEngine::write_trace_row(std::uint64_t timestamp, int is_bot_trade, const char* trade_side) {
+    if (!trace_log_.is_open() || snapshot_.mid_price <= 0.0) {
+        return;
+    }
+
+    trace_log_ << timestamp << ','
+               << snapshot_.mid_price << ','
+               << current_equity() << ','
+               << is_bot_trade << ','
+               << trade_side << '\n';
 }
 
 double BacktestEngine::current_equity() const noexcept {

@@ -75,6 +75,9 @@ python3 scripts/download_binance_data.py
 
 # Run backtest with explicit parameters
 ./build-release/lob_backtest binance_trades.csv 20.0 0.1 2.0
+
+# Run backtest and write trace_log.csv for visualization
+./build-release/lob_backtest binance_trades.csv 20.0 0.1 2.0 --trace
 ```
 
 The backtester prints a human-readable tear sheet and a machine-readable final line:
@@ -100,6 +103,31 @@ imbalance_grid = [2.0, 5.0, 10.0, 999.0]
 ```
 
 Results are parsed from `RESULT_CSV`, loaded into pandas, sorted by Sharpe ratio, and printed as the top 10 parameter combinations.
+
+## Visualization
+
+Trace logging is opt-in because it writes a CSV row for every trade and every equity sample:
+
+```bash
+./build-release/lob_backtest binance_trades.csv 20.0 0.1 2.0 --trace
+```
+
+This creates `trace_log.csv` with:
+
+```text
+timestamp,mid_price,equity,is_bot_trade,trade_side
+```
+
+Create an interactive Plotly chart:
+
+```bash
+python3 scripts/plot_results.py trace_log.csv --output backtest_trace.html
+```
+
+The chart has:
+- Mid-price with bot buy markers in green and bot sell markers in red.
+- PnL over virtual market time.
+- Interactive zoom and hover, useful for inspecting millisecond-level reactions around price moves.
 
 ## Notes
 

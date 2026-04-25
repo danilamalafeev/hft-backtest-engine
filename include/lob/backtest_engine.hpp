@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <filesystem>
+#include <fstream>
 #include <unordered_map>
 #include <vector>
 
@@ -17,6 +18,8 @@ public:
         double initial_cash {100'000'000.0};
         std::uint64_t equity_sample_interval_ms {1'000U};
         std::size_t equity_curve_reserve {100'000U};
+        bool trace_enabled {};
+        std::filesystem::path trace_path {"trace_log.csv"};
     };
 
     struct Result {
@@ -54,6 +57,9 @@ private:
     void route_strategy_fill(const StrategyFill& fill);
     void sample_equity(std::uint64_t timestamp);
     void update_snapshot(std::uint64_t timestamp, double fallback_price);
+    void open_trace_log();
+    void close_trace_log();
+    void write_trace_row(std::uint64_t timestamp, int is_bot_trade, const char* trade_side);
 
     [[nodiscard]] double current_equity() const noexcept;
     [[nodiscard]] bool is_strategy_order(std::uint64_t order_id) const noexcept;
@@ -67,6 +73,7 @@ private:
     std::unordered_map<std::uint64_t, OwnOrderState> own_orders_ {};
     std::vector<StrategyFill> pending_fills_ {};
     std::vector<double> equity_curve_ {};
+    std::ofstream trace_log_ {};
     std::uint64_t next_strategy_order_id_ {1ULL << 63U};
     std::uint64_t next_equity_sample_timestamp_ {};
     double cash_ {};

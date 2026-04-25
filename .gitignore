@@ -1,2 +1,7 @@
 build/
 binance_trades.csv
+trace_log.csv
+*.html
+__pycache__/
+backtest_trace.html
+*.csv

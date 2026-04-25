@@ -7,6 +7,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 #include "lob/analytics.hpp"
 #include "lob/backtest_engine.hpp"
@@ -49,7 +50,8 @@ int RunBacktest(
     const std::filesystem::path& csv_path,
     double base_spread,
     double gamma,
-    double imbalance_threshold
+    double imbalance_threshold,
+    bool trace_enabled
 ) {
     constexpr std::uint64_t kEquitySampleIntervalMs = 1'000U;
     constexpr double kQuantityScale = 100'000'000.0;
@@ -67,6 +69,8 @@ int RunBacktest(
         .initial_cash = 100'000'000.0,
         .equity_sample_interval_ms = kEquitySampleIntervalMs,
         .equity_curve_reserve = 100'000U,
+        .trace_enabled = trace_enabled,
+        .trace_path = "trace_log.csv",
     }};
 
     const auto wall_start = std::chrono::steady_clock::now();
@@ -105,6 +109,9 @@ int RunBacktest(
     std::cout << "Sharpe Ratio: " << std::fixed << std::setprecision(4) << analytics.sharpe_ratio << '\n';
     std::cout << "Max Drawdown: " << std::fixed << std::setprecision(2) << analytics.max_drawdown
               << " (" << std::setprecision(2) << (analytics.max_drawdown_pct * 100.0) << "%)\n";
+    if (trace_enabled) {
+        std::cout << "Trace Log: trace_log.csv\n";
+    }
     std::cout << "RESULT_CSV,"
               << std::fixed << std::setprecision(6)
               << base_spread << ','
@@ -121,15 +128,41 @@ int RunBacktest(
 
 int main(int argc, char* argv[]) {
     try {
-        if (argc != 2 && argc != 5) {
-            std::cerr << "Usage: lob_backtest <binance_trades.csv> [base_spread gamma imbalance_threshold]" << '\n';
+        if (argc < 2) {
+            std::cerr << "Usage: lob_backtest <binance_trades.csv> [base_spread gamma imbalance_threshold] [--trace]" << '\n';
             return 1;
         }
 
-        const double base_spread = argc == 5 ? ParseDoubleArg(argv[2], "base_spread") : 10.0;
-        const double gamma = argc == 5 ? ParseDoubleArg(argv[3], "gamma") : 2.0;
-        const double imbalance_threshold = argc == 5 ? ParseDoubleArg(argv[4], "imbalance_threshold") : 3.0;
-        return RunBacktest(argv[1], base_spread, gamma, imbalance_threshold);
+        bool trace_enabled = false;
+        std::vector<const char*> positional_args {};
+        positional_args.reserve(4U);
+        positional_args.push_back(argv[1]);
+
+        for (int index = 2; index < argc; ++index) {
+            const std::string argument {argv[index]};
+            if (argument == "--trace") {
+                trace_enabled = true;
+            } else {
+                positional_args.push_back(argv[index]);
+            }
+        }
+
+        if (positional_args.size() != 1U && positional_args.size() != 4U) {
+            std::cerr << "Usage: lob_backtest <binance_trades.csv> [base_spread gamma imbalance_threshold] [--trace]" << '\n';
+            return 1;
+        }
+
+        const double base_spread = positional_args.size() == 4U
+            ? ParseDoubleArg(positional_args[1], "base_spread")
+            : 10.0;
+        const double gamma = positional_args.size() == 4U
+            ? ParseDoubleArg(positional_args[2], "gamma")
+            : 2.0;
+        const double imbalance_threshold = positional_args.size() == 4U
+            ? ParseDoubleArg(positional_args[3], "imbalance_threshold")
+            : 3.0;
+
+        return RunBacktest(argv[1], base_spread, gamma, imbalance_threshold, trace_enabled);
     } catch (const std::exception& exception) {
         std::cerr << "Backtest failed: " << exception.what() << '\n';
         return 1;
