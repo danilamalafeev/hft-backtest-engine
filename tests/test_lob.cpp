@@ -1,5 +1,8 @@
 #include <gtest/gtest.h>
 
+#include <vector>
+
+#include "lob/analytics.hpp"
 #include "lob/order_book.hpp"
 
 namespace {
@@ -190,6 +193,59 @@ TEST(OrderBookTest, CancelOrderRemovesEmptyBidPriceLevelAndIndexEntry) {
 TEST(OrderBookTest, CancelOrderReturnsFalseForUnknownId) {
     lob::OrderBook order_book {};
     EXPECT_FALSE(order_book.cancel_order(999U));
+}
+
+TEST(OrderBookTest, ExposesBestPricesAndL2Snapshot) {
+    lob::OrderBook order_book {};
+    ASSERT_TRUE(order_book.process_order(lob::Order {
+        .id = 100U,
+        .price = 99.50,
+        .quantity = 10U,
+        .side = lob::Side::Buy,
+        .timestamp = 1U,
+    }).empty());
+    ASSERT_TRUE(order_book.process_order(lob::Order {
+        .id = 101U,
+        .price = 99.50,
+        .quantity = 15U,
+        .side = lob::Side::Buy,
+        .timestamp = 2U,
+    }).empty());
+    ASSERT_TRUE(order_book.process_order(lob::Order {
+        .id = 102U,
+        .price = 100.50,
+        .quantity = 20U,
+        .side = lob::Side::Sell,
+        .timestamp = 3U,
+    }).empty());
+
+    EXPECT_DOUBLE_EQ(order_book.get_best_bid(), 99.50);
+    EXPECT_DOUBLE_EQ(order_book.get_best_ask(), 100.50);
+
+    std::vector<lob::PriceLevelInfo> bids {};
+    std::vector<lob::PriceLevelInfo> asks {};
+    bids.reserve(5U);
+    asks.reserve(5U);
+
+    order_book.get_l2_snapshot(bids, asks, 5);
+
+    ASSERT_EQ(bids.size(), 1U);
+    ASSERT_EQ(asks.size(), 1U);
+    EXPECT_DOUBLE_EQ(bids.front().price, 99.50);
+    EXPECT_DOUBLE_EQ(bids.front().total_qty, 25.0);
+    EXPECT_DOUBLE_EQ(asks.front().price, 100.50);
+    EXPECT_DOUBLE_EQ(asks.front().total_qty, 20.0);
+}
+
+TEST(AnalyticsTest, ComputesPnlAndDrawdownFromEquityCurve) {
+    const std::vector<double> equity_curve {100.0, 110.0, 105.0, 120.0};
+
+    const lob::BacktestAnalytics analytics = lob::BacktestAnalytics::analyze(equity_curve);
+
+    EXPECT_DOUBLE_EQ(analytics.total_realized_pnl, 20.0);
+    EXPECT_DOUBLE_EQ(analytics.max_drawdown, 5.0);
+    EXPECT_DOUBLE_EQ(analytics.max_drawdown_pct, 5.0 / 110.0);
+    EXPECT_GT(analytics.sharpe_ratio, 0.0);
 }
 
 }  // namespace

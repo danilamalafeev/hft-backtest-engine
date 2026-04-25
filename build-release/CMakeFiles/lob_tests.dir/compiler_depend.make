@@ -992,6 +992,7 @@ CMakeFiles/lob_tests.dir/tests/test_lob.cpp.o: /Users/danilamalafeev/Documents/N
   _deps/googletest-src/googletest/include/gtest/internal/gtest-port.h \
   _deps/googletest-src/googletest/include/gtest/internal/gtest-string.h \
   _deps/googletest-src/googletest/include/gtest/internal/gtest-type-util.h \
+  /Users/danilamalafeev/Documents/New\ project/include/lob/analytics.hpp \
   /Users/danilamalafeev/Documents/New\ project/include/lob/order.hpp \
   /Users/danilamalafeev/Documents/New\ project/include/lob/order_book.hpp \
   /Users/danilamalafeev/Documents/New\ project/include/lob/price_level.hpp \
@@ -1001,6 +1002,8 @@ CMakeFiles/lob_tests.dir/tests/test_lob.cpp.o: /Users/danilamalafeev/Documents/N
 /Users/danilamalafeev/Documents/New\ project/include/lob/trade.hpp:
 
 /Users/danilamalafeev/Documents/New\ project/include/lob/price_level.hpp:
+
+/Users/danilamalafeev/Documents/New\ project/include/lob/analytics.hpp:
 
 _deps/googletest-src/googletest/include/gtest/internal/gtest-type-util.h:
 

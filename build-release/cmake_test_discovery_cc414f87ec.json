@@ -1,45 +1,61 @@
 {
-  "tests": 7,
+  "tests": 9,
   "name": "AllTests",
   "testsuites": [
     {
       "name": "OrderBookTest",
-      "tests": 7,
+      "tests": 8,
       "testsuite": [
         {
           "name": "InitializesSuccessfully",
           "file": "\/Users\/danilamalafeev\/Documents\/New project\/tests\/test_lob.cpp",
-          "line": 7
+          "line": 10
         },
         {
           "name": "ProcessOrderRestsBuyOrderWhenBookDoesNotCross",
           "file": "\/Users\/danilamalafeev\/Documents\/New project\/tests\/test_lob.cpp",
-          "line": 14
+          "line": 17
         },
         {
           "name": "ProcessOrderRestsSellOrderWhenBookDoesNotCross",
           "file": "\/Users\/danilamalafeev\/Documents\/New project\/tests\/test_lob.cpp",
-          "line": 38
+          "line": 41
         },
         {
           "name": "ProcessOrderMatchesCrossSpreadUsingPriceTimePriority",
           "file": "\/Users\/danilamalafeev\/Documents\/New project\/tests\/test_lob.cpp",
-          "line": 62
+          "line": 65
         },
         {
           "name": "ProcessOrderRestsResidualQuantityAfterPartialIncomingFill",
           "file": "\/Users\/danilamalafeev\/Documents\/New project\/tests\/test_lob.cpp",
-          "line": 127
+          "line": 130
         },
         {
           "name": "CancelOrderRemovesEmptyBidPriceLevelAndIndexEntry",
           "file": "\/Users\/danilamalafeev\/Documents\/New project\/tests\/test_lob.cpp",
-          "line": 160
+          "line": 163
         },
         {
           "name": "CancelOrderReturnsFalseForUnknownId",
           "file": "\/Users\/danilamalafeev\/Documents\/New project\/tests\/test_lob.cpp",
-          "line": 190
+          "line": 193
+        },
+        {
+          "name": "ExposesBestPricesAndL2Snapshot",
+          "file": "\/Users\/danilamalafeev\/Documents\/New project\/tests\/test_lob.cpp",
+          "line": 198
+        }
+      ]
+    },
+    {
+      "name": "AnalyticsTest",
+      "tests": 1,
+      "testsuite": [
+        {
+          "name": "ComputesPnlAndDrawdownFromEquityCurve",
+          "file": "\/Users\/danilamalafeev\/Documents\/New project\/tests\/test_lob.cpp",
+          "line": 240
         }
       ]
     }

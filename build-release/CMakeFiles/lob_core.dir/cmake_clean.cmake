@@ -1,4 +1,6 @@
 file(REMOVE_RECURSE
+  "CMakeFiles/lob_core.dir/src/backtest_engine.cpp.o"
+  "CMakeFiles/lob_core.dir/src/backtest_engine.cpp.o.d"
   "CMakeFiles/lob_core.dir/src/csv_parser.cpp.o"
   "CMakeFiles/lob_core.dir/src/csv_parser.cpp.o.d"
   "CMakeFiles/lob_core.dir/src/order_book.cpp.o"

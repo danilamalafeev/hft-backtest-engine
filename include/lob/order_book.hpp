@@ -13,6 +13,11 @@
 
 namespace lob {
 
+struct PriceLevelInfo {
+    double price {};
+    double total_qty {};
+};
+
 class OrderBook {
 public:
     using OrderIterator = std::list<Order>::iterator;
@@ -39,9 +44,18 @@ public:
 
     // Matches the incoming order against the opposite side, then rests any residual.
     [[nodiscard]] std::vector<Trade> process_order(const Order& order);
+    void process_order(const Order& order, std::vector<Trade>& trades_out);
 
     // Cancels an order by its unique identifier.
     [[nodiscard]] bool cancel_order(std::uint64_t order_id);
+
+    [[nodiscard]] double get_best_bid() const noexcept;
+    [[nodiscard]] double get_best_ask() const noexcept;
+    void get_l2_snapshot(
+        std::vector<PriceLevelInfo>& bids_out,
+        std::vector<PriceLevelInfo>& asks_out,
+        int depth = 5
+    ) const;
 
     [[nodiscard]] const BidBook& bids() const noexcept {
         return bids_;

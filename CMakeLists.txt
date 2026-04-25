@@ -34,6 +34,7 @@ FetchContent_MakeAvailable(googletest)
 FetchContent_MakeAvailable(googlebenchmark)
 
 add_library(lob_core STATIC
+    src/backtest_engine.cpp
     src/csv_parser.cpp
     src/order_book.cpp
 )

@@ -1,10 +1,10 @@
-Start testing: Apr 25 00:20 MSK
+Start testing: Apr 25 16:01 MSK
 ----------------------------------------------------------
-1/7 Testing: OrderBookTest.InitializesSuccessfully
-1/7 Test: OrderBookTest.InitializesSuccessfully
+1/9 Testing: OrderBookTest.InitializesSuccessfully
+1/9 Test: OrderBookTest.InitializesSuccessfully
 Command: "/Users/danilamalafeev/Documents/New project/build-release/lob_tests" "--gtest_filter=OrderBookTest.InitializesSuccessfully" "--gtest_also_run_disabled_tests"
 Directory: /Users/danilamalafeev/Documents/New project/build-release
-"OrderBookTest.InitializesSuccessfully" start time: Apr 25 00:20 MSK
+"OrderBookTest.InitializesSuccessfully" start time: Apr 25 16:01 MSK
 Output:
 ----------------------------------------------------------
 Running main() from /Users/danilamalafeev/Documents/New project/build-release/_deps/googletest-src/googletest/src/gtest_main.cc
@@ -23,15 +23,15 @@ Note: Google Test filter = OrderBookTest.InitializesSuccessfully
 Test time =   0.00 sec
 ----------------------------------------------------------
 Test Passed.
-"OrderBookTest.InitializesSuccessfully" end time: Apr 25 00:20 MSK
+"OrderBookTest.InitializesSuccessfully" end time: Apr 25 16:01 MSK
 "OrderBookTest.InitializesSuccessfully" time elapsed: 00:00:00
 ----------------------------------------------------------
 
-2/7 Testing: OrderBookTest.ProcessOrderRestsBuyOrderWhenBookDoesNotCross
-2/7 Test: OrderBookTest.ProcessOrderRestsBuyOrderWhenBookDoesNotCross
+2/9 Testing: OrderBookTest.ProcessOrderRestsBuyOrderWhenBookDoesNotCross
+2/9 Test: OrderBookTest.ProcessOrderRestsBuyOrderWhenBookDoesNotCross
 Command: "/Users/danilamalafeev/Documents/New project/build-release/lob_tests" "--gtest_filter=OrderBookTest.ProcessOrderRestsBuyOrderWhenBookDoesNotCross" "--gtest_also_run_disabled_tests"
 Directory: /Users/danilamalafeev/Documents/New project/build-release
-"OrderBookTest.ProcessOrderRestsBuyOrderWhenBookDoesNotCross" start time: Apr 25 00:20 MSK
+"OrderBookTest.ProcessOrderRestsBuyOrderWhenBookDoesNotCross" start time: Apr 25 16:01 MSK
 Output:
 ----------------------------------------------------------
 Running main() from /Users/danilamalafeev/Documents/New project/build-release/_deps/googletest-src/googletest/src/gtest_main.cc
@@ -50,15 +50,15 @@ Note: Google Test filter = OrderBookTest.ProcessOrderRestsBuyOrderWhenBookDoesNo
 Test time =   0.00 sec
 ----------------------------------------------------------
 Test Passed.
-"OrderBookTest.ProcessOrderRestsBuyOrderWhenBookDoesNotCross" end time: Apr 25 00:20 MSK
+"OrderBookTest.ProcessOrderRestsBuyOrderWhenBookDoesNotCross" end time: Apr 25 16:01 MSK
 "OrderBookTest.ProcessOrderRestsBuyOrderWhenBookDoesNotCross" time elapsed: 00:00:00
 ----------------------------------------------------------
 
-3/7 Testing: OrderBookTest.ProcessOrderRestsSellOrderWhenBookDoesNotCross
-3/7 Test: OrderBookTest.ProcessOrderRestsSellOrderWhenBookDoesNotCross
+3/9 Testing: OrderBookTest.ProcessOrderRestsSellOrderWhenBookDoesNotCross
+3/9 Test: OrderBookTest.ProcessOrderRestsSellOrderWhenBookDoesNotCross
 Command: "/Users/danilamalafeev/Documents/New project/build-release/lob_tests" "--gtest_filter=OrderBookTest.ProcessOrderRestsSellOrderWhenBookDoesNotCross" "--gtest_also_run_disabled_tests"
 Directory: /Users/danilamalafeev/Documents/New project/build-release
-"OrderBookTest.ProcessOrderRestsSellOrderWhenBookDoesNotCross" start time: Apr 25 00:20 MSK
+"OrderBookTest.ProcessOrderRestsSellOrderWhenBookDoesNotCross" start time: Apr 25 16:01 MSK
 Output:
 ----------------------------------------------------------
 Running main() from /Users/danilamalafeev/Documents/New project/build-release/_deps/googletest-src/googletest/src/gtest_main.cc
@@ -77,15 +77,15 @@ Note: Google Test filter = OrderBookTest.ProcessOrderRestsSellOrderWhenBookDoesN
 Test time =   0.00 sec
 ----------------------------------------------------------
 Test Passed.
-"OrderBookTest.ProcessOrderRestsSellOrderWhenBookDoesNotCross" end time: Apr 25 00:20 MSK
+"OrderBookTest.ProcessOrderRestsSellOrderWhenBookDoesNotCross" end time: Apr 25 16:01 MSK
 "OrderBookTest.ProcessOrderRestsSellOrderWhenBookDoesNotCross" time elapsed: 00:00:00
 ----------------------------------------------------------
 
-4/7 Testing: OrderBookTest.ProcessOrderMatchesCrossSpreadUsingPriceTimePriority
-4/7 Test: OrderBookTest.ProcessOrderMatchesCrossSpreadUsingPriceTimePriority
+4/9 Testing: OrderBookTest.ProcessOrderMatchesCrossSpreadUsingPriceTimePriority
+4/9 Test: OrderBookTest.ProcessOrderMatchesCrossSpreadUsingPriceTimePriority
 Command: "/Users/danilamalafeev/Documents/New project/build-release/lob_tests" "--gtest_filter=OrderBookTest.ProcessOrderMatchesCrossSpreadUsingPriceTimePriority" "--gtest_also_run_disabled_tests"
 Directory: /Users/danilamalafeev/Documents/New project/build-release
-"OrderBookTest.ProcessOrderMatchesCrossSpreadUsingPriceTimePriority" start time: Apr 25 00:20 MSK
+"OrderBookTest.ProcessOrderMatchesCrossSpreadUsingPriceTimePriority" start time: Apr 25 16:01 MSK
 Output:
 ----------------------------------------------------------
 Running main() from /Users/danilamalafeev/Documents/New project/build-release/_deps/googletest-src/googletest/src/gtest_main.cc
@@ -104,15 +104,15 @@ Note: Google Test filter = OrderBookTest.ProcessOrderMatchesCrossSpreadUsingPric
 Test time =   0.00 sec
 ----------------------------------------------------------
 Test Passed.
-"OrderBookTest.ProcessOrderMatchesCrossSpreadUsingPriceTimePriority" end time: Apr 25 00:20 MSK
+"OrderBookTest.ProcessOrderMatchesCrossSpreadUsingPriceTimePriority" end time: Apr 25 16:01 MSK
 "OrderBookTest.ProcessOrderMatchesCrossSpreadUsingPriceTimePriority" time elapsed: 00:00:00
 ----------------------------------------------------------
 
-5/7 Testing: OrderBookTest.ProcessOrderRestsResidualQuantityAfterPartialIncomingFill
-5/7 Test: OrderBookTest.ProcessOrderRestsResidualQuantityAfterPartialIncomingFill
+5/9 Testing: OrderBookTest.ProcessOrderRestsResidualQuantityAfterPartialIncomingFill
+5/9 Test: OrderBookTest.ProcessOrderRestsResidualQuantityAfterPartialIncomingFill
 Command: "/Users/danilamalafeev/Documents/New project/build-release/lob_tests" "--gtest_filter=OrderBookTest.ProcessOrderRestsResidualQuantityAfterPartialIncomingFill" "--gtest_also_run_disabled_tests"
 Directory: /Users/danilamalafeev/Documents/New project/build-release
-"OrderBookTest.ProcessOrderRestsResidualQuantityAfterPartialIncomingFill" start time: Apr 25 00:20 MSK
+"OrderBookTest.ProcessOrderRestsResidualQuantityAfterPartialIncomingFill" start time: Apr 25 16:01 MSK
 Output:
 ----------------------------------------------------------
 Running main() from /Users/danilamalafeev/Documents/New project/build-release/_deps/googletest-src/googletest/src/gtest_main.cc
@@ -131,15 +131,15 @@ Note: Google Test filter = OrderBookTest.ProcessOrderRestsResidualQuantityAfterP
 Test time =   0.00 sec
 ----------------------------------------------------------
 Test Passed.
-"OrderBookTest.ProcessOrderRestsResidualQuantityAfterPartialIncomingFill" end time: Apr 25 00:20 MSK
+"OrderBookTest.ProcessOrderRestsResidualQuantityAfterPartialIncomingFill" end time: Apr 25 16:01 MSK
 "OrderBookTest.ProcessOrderRestsResidualQuantityAfterPartialIncomingFill" time elapsed: 00:00:00
 ----------------------------------------------------------
 
-6/7 Testing: OrderBookTest.CancelOrderRemovesEmptyBidPriceLevelAndIndexEntry
-6/7 Test: OrderBookTest.CancelOrderRemovesEmptyBidPriceLevelAndIndexEntry
+6/9 Testing: OrderBookTest.CancelOrderRemovesEmptyBidPriceLevelAndIndexEntry
+6/9 Test: OrderBookTest.CancelOrderRemovesEmptyBidPriceLevelAndIndexEntry
 Command: "/Users/danilamalafeev/Documents/New project/build-release/lob_tests" "--gtest_filter=OrderBookTest.CancelOrderRemovesEmptyBidPriceLevelAndIndexEntry" "--gtest_also_run_disabled_tests"
 Directory: /Users/danilamalafeev/Documents/New project/build-release
-"OrderBookTest.CancelOrderRemovesEmptyBidPriceLevelAndIndexEntry" start time: Apr 25 00:20 MSK
+"OrderBookTest.CancelOrderRemovesEmptyBidPriceLevelAndIndexEntry" start time: Apr 25 16:01 MSK
 Output:
 ----------------------------------------------------------
 Running main() from /Users/danilamalafeev/Documents/New project/build-release/_deps/googletest-src/googletest/src/gtest_main.cc
@@ -158,15 +158,15 @@ Note: Google Test filter = OrderBookTest.CancelOrderRemovesEmptyBidPriceLevelAnd
 Test time =   0.00 sec
 ----------------------------------------------------------
 Test Passed.
-"OrderBookTest.CancelOrderRemovesEmptyBidPriceLevelAndIndexEntry" end time: Apr 25 00:20 MSK
+"OrderBookTest.CancelOrderRemovesEmptyBidPriceLevelAndIndexEntry" end time: Apr 25 16:01 MSK
 "OrderBookTest.CancelOrderRemovesEmptyBidPriceLevelAndIndexEntry" time elapsed: 00:00:00
 ----------------------------------------------------------
 
-7/7 Testing: OrderBookTest.CancelOrderReturnsFalseForUnknownId
-7/7 Test: OrderBookTest.CancelOrderReturnsFalseForUnknownId
+7/9 Testing: OrderBookTest.CancelOrderReturnsFalseForUnknownId
+7/9 Test: OrderBookTest.CancelOrderReturnsFalseForUnknownId
 Command: "/Users/danilamalafeev/Documents/New project/build-release/lob_tests" "--gtest_filter=OrderBookTest.CancelOrderReturnsFalseForUnknownId" "--gtest_also_run_disabled_tests"
 Directory: /Users/danilamalafeev/Documents/New project/build-release
-"OrderBookTest.CancelOrderReturnsFalseForUnknownId" start time: Apr 25 00:20 MSK
+"OrderBookTest.CancelOrderReturnsFalseForUnknownId" start time: Apr 25 16:01 MSK
 Output:
 ----------------------------------------------------------
 Running main() from /Users/danilamalafeev/Documents/New project/build-release/_deps/googletest-src/googletest/src/gtest_main.cc
@@ -185,8 +185,62 @@ Note: Google Test filter = OrderBookTest.CancelOrderReturnsFalseForUnknownId
 Test time =   0.00 sec
 ----------------------------------------------------------
 Test Passed.
-"OrderBookTest.CancelOrderReturnsFalseForUnknownId" end time: Apr 25 00:20 MSK
+"OrderBookTest.CancelOrderReturnsFalseForUnknownId" end time: Apr 25 16:01 MSK
 "OrderBookTest.CancelOrderReturnsFalseForUnknownId" time elapsed: 00:00:00
 ----------------------------------------------------------
 
-End testing: Apr 25 00:20 MSK
+8/9 Testing: OrderBookTest.ExposesBestPricesAndL2Snapshot
+8/9 Test: OrderBookTest.ExposesBestPricesAndL2Snapshot
+Command: "/Users/danilamalafeev/Documents/New project/build-release/lob_tests" "--gtest_filter=OrderBookTest.ExposesBestPricesAndL2Snapshot" "--gtest_also_run_disabled_tests"
+Directory: /Users/danilamalafeev/Documents/New project/build-release
+"OrderBookTest.ExposesBestPricesAndL2Snapshot" start time: Apr 25 16:01 MSK
+Output:
+----------------------------------------------------------
+Running main() from /Users/danilamalafeev/Documents/New project/build-release/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = OrderBookTest.ExposesBestPricesAndL2Snapshot
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from OrderBookTest
+[ RUN      ] OrderBookTest.ExposesBestPricesAndL2Snapshot
+[       OK ] OrderBookTest.ExposesBestPricesAndL2Snapshot (0 ms)
+[----------] 1 test from OrderBookTest (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+<end of output>
+Test time =   0.00 sec
+----------------------------------------------------------
+Test Passed.
+"OrderBookTest.ExposesBestPricesAndL2Snapshot" end time: Apr 25 16:01 MSK
+"OrderBookTest.ExposesBestPricesAndL2Snapshot" time elapsed: 00:00:00
+----------------------------------------------------------
+
+9/9 Testing: AnalyticsTest.ComputesPnlAndDrawdownFromEquityCurve
+9/9 Test: AnalyticsTest.ComputesPnlAndDrawdownFromEquityCurve
+Command: "/Users/danilamalafeev/Documents/New project/build-release/lob_tests" "--gtest_filter=AnalyticsTest.ComputesPnlAndDrawdownFromEquityCurve" "--gtest_also_run_disabled_tests"
+Directory: /Users/danilamalafeev/Documents/New project/build-release
+"AnalyticsTest.ComputesPnlAndDrawdownFromEquityCurve" start time: Apr 25 16:01 MSK
+Output:
+----------------------------------------------------------
+Running main() from /Users/danilamalafeev/Documents/New project/build-release/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = AnalyticsTest.ComputesPnlAndDrawdownFromEquityCurve
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from AnalyticsTest
+[ RUN      ] AnalyticsTest.ComputesPnlAndDrawdownFromEquityCurve
+[       OK ] AnalyticsTest.ComputesPnlAndDrawdownFromEquityCurve (0 ms)
+[----------] 1 test from AnalyticsTest (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+<end of output>
+Test time =   0.00 sec
+----------------------------------------------------------
+Test Passed.
+"AnalyticsTest.ComputesPnlAndDrawdownFromEquityCurve" end time: Apr 25 16:01 MSK
+"AnalyticsTest.ComputesPnlAndDrawdownFromEquityCurve" time elapsed: 00:00:00
+----------------------------------------------------------
+
+End testing: Apr 25 16:01 MSK

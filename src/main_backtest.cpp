@@ -8,8 +8,9 @@
 #include <stdexcept>
 #include <string>
 
-#include "lob/csv_parser.hpp"
-#include "lob/order_book.hpp"
+#include "lob/analytics.hpp"
+#include "lob/backtest_engine.hpp"
+#include "lob/inventory_skew_strategy.hpp"
 
 namespace {
 
@@ -36,13 +37,41 @@ namespace {
     return stream.str();
 }
 
-int RunBacktest(const std::filesystem::path& csv_path) {
-    lob::CsvParser parser {};
-    lob::OrderBook order_book {};
+[[nodiscard]] double ParseDoubleArg(const char* value, const char* name) {
+    try {
+        return std::stod(value);
+    } catch (const std::exception&) {
+        throw std::invalid_argument(std::string {"Invalid "} + name + ": " + value);
+    }
+}
+
+int RunBacktest(
+    const std::filesystem::path& csv_path,
+    double base_spread,
+    double gamma,
+    double imbalance_threshold
+) {
+    constexpr std::uint64_t kEquitySampleIntervalMs = 1'000U;
+    constexpr double kQuantityScale = 100'000'000.0;
+
+    lob::InventorySkewStrategy strategy {lob::InventorySkewStrategy::Config {
+        .target_position = 0.0,
+        .max_position = 10.0,
+        .base_spread = base_spread,
+        .risk_aversion_gamma = gamma,
+        .imbalance_threshold = imbalance_threshold,
+        .quote_quantity = 1'000'000U,
+        .refresh_interval_ms = 1'000U,
+    }};
+    lob::BacktestEngine engine {strategy, lob::BacktestEngine::Config {
+        .initial_cash = 100'000'000.0,
+        .equity_sample_interval_ms = kEquitySampleIntervalMs,
+        .equity_curve_reserve = 100'000U,
+    }};
 
     const auto wall_start = std::chrono::steady_clock::now();
     const std::clock_t cpu_start = std::clock();
-    const lob::CsvParser::ReplayStats replay_stats = parser.replay_file(csv_path, order_book);
+    lob::BacktestEngine::Result result = engine.run(csv_path);
 
     const std::clock_t cpu_end = std::clock();
     const auto wall_end = std::chrono::steady_clock::now();
@@ -50,18 +79,40 @@ int RunBacktest(const std::filesystem::path& csv_path) {
     const double cpu_seconds = static_cast<double>(cpu_end - cpu_start) / static_cast<double>(CLOCKS_PER_SEC);
     const std::chrono::duration<double> wall_seconds = wall_end - wall_start;
     const double events_per_second = cpu_seconds > 0.0
-        ? static_cast<double>(replay_stats.orders_processed) / cpu_seconds
+        ? static_cast<double>(result.replay_stats.orders_processed) / cpu_seconds
         : 0.0;
-    const std::uint64_t virtual_elapsed = replay_stats.last_timestamp >= replay_stats.first_timestamp
-        ? replay_stats.last_timestamp - replay_stats.first_timestamp
+    const std::uint64_t virtual_elapsed = result.replay_stats.last_timestamp >= result.replay_stats.first_timestamp
+        ? result.replay_stats.last_timestamp - result.replay_stats.first_timestamp
         : 0U;
+    const lob::BacktestAnalytics analytics =
+        lob::BacktestAnalytics::analyze(result.equity_curve, kEquitySampleIntervalMs);
 
-    std::cout << "Total Orders Processed: " << replay_stats.orders_processed << '\n';
-    std::cout << "Generated Trades: " << replay_stats.generated_trades << '\n';
+    std::cout << "Total Orders Processed: " << result.replay_stats.orders_processed << '\n';
+    std::cout << "Generated Trades: " << result.replay_stats.generated_trades << '\n';
     std::cout << "Virtual Market Time Elapsed: " << FormatVirtualElapsed(virtual_elapsed) << '\n';
     std::cout << "Actual CPU Time Taken: " << std::fixed << std::setprecision(6) << cpu_seconds << " seconds\n";
     std::cout << "Wall Clock Time Taken: " << std::fixed << std::setprecision(6) << wall_seconds.count() << " seconds\n";
     std::cout << "EPS: " << std::fixed << std::setprecision(2) << events_per_second << '\n';
+    std::cout << '\n';
+    std::cout << "=== Quantitative Tear Sheet ===\n";
+    std::cout << "Initial Equity: " << std::fixed << std::setprecision(2) << result.initial_cash << '\n';
+    std::cout << "Final Cash: " << std::fixed << std::setprecision(2) << result.final_cash << '\n';
+    std::cout << "Final Position: " << std::fixed << std::setprecision(8)
+              << (static_cast<double>(result.final_position) / kQuantityScale) << '\n';
+    std::cout << "Final Mid Price: " << std::fixed << std::setprecision(2) << result.final_mid_price << '\n';
+    std::cout << "Equity Samples: " << result.equity_curve.size() << '\n';
+    std::cout << "Total Realized PnL: " << std::fixed << std::setprecision(2) << analytics.total_realized_pnl << '\n';
+    std::cout << "Sharpe Ratio: " << std::fixed << std::setprecision(4) << analytics.sharpe_ratio << '\n';
+    std::cout << "Max Drawdown: " << std::fixed << std::setprecision(2) << analytics.max_drawdown
+              << " (" << std::setprecision(2) << (analytics.max_drawdown_pct * 100.0) << "%)\n";
+    std::cout << "RESULT_CSV,"
+              << std::fixed << std::setprecision(6)
+              << base_spread << ','
+              << gamma << ','
+              << imbalance_threshold << ','
+              << analytics.total_realized_pnl << ','
+              << analytics.sharpe_ratio << ','
+              << analytics.max_drawdown << '\n';
 
     return 0;
 }
@@ -70,12 +121,15 @@ int RunBacktest(const std::filesystem::path& csv_path) {
 
 int main(int argc, char* argv[]) {
     try {
-        if (argc != 2) {
-            std::cerr << "Usage: lob_backtest <binance_trades.csv>" << '\n';
+        if (argc != 2 && argc != 5) {
+            std::cerr << "Usage: lob_backtest <binance_trades.csv> [base_spread gamma imbalance_threshold]" << '\n';
             return 1;
         }
 
-        return RunBacktest(argv[1]);
+        const double base_spread = argc == 5 ? ParseDoubleArg(argv[2], "base_spread") : 10.0;
+        const double gamma = argc == 5 ? ParseDoubleArg(argv[3], "gamma") : 2.0;
+        const double imbalance_threshold = argc == 5 ? ParseDoubleArg(argv[4], "imbalance_threshold") : 3.0;
+        return RunBacktest(argv[1], base_spread, gamma, imbalance_threshold);
     } catch (const std::exception& exception) {
         std::cerr << "Backtest failed: " << exception.what() << '\n';
         return 1;

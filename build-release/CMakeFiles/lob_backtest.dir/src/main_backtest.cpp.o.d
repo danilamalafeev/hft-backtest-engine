@@ -978,6 +978,8 @@ CMakeFiles/lob_backtest.dir/src/main_backtest.cpp.o: \
   /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1/__filesystem/recursive_directory_iterator.h \
   /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1/__filesystem/u8path.h \
   /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1/iostream \
+  /Users/danilamalafeev/Documents/New\ project/include/lob/analytics.hpp \
+  /Users/danilamalafeev/Documents/New\ project/include/lob/backtest_engine.hpp \
   /Users/danilamalafeev/Documents/New\ project/include/lob/csv_parser.hpp \
   /Users/danilamalafeev/Documents/New\ project/include/lob/order.hpp \
   /Users/danilamalafeev/Documents/New\ project/include/lob/order_book.hpp \
@@ -985,4 +987,6 @@ CMakeFiles/lob_backtest.dir/src/main_backtest.cpp.o: \
   /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1/map \
   /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1/__tree \
   /Users/danilamalafeev/Documents/New\ project/include/lob/price_level.hpp \
-  /Users/danilamalafeev/Documents/New\ project/include/lob/trade.hpp
+  /Users/danilamalafeev/Documents/New\ project/include/lob/trade.hpp \
+  /Users/danilamalafeev/Documents/New\ project/include/lob/strategy.hpp \
+  /Users/danilamalafeev/Documents/New\ project/include/lob/inventory_skew_strategy.hpp

@@ -983,10 +983,14 @@ CMakeFiles/lob_backtest.dir/src/main_backtest.cpp.o: /Users/danilamalafeev/Docum
   /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/17/include/stdarg.h \
   /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/17/include/stddef.h \
   /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/17/include/stdint.h \
+  /Users/danilamalafeev/Documents/New\ project/include/lob/analytics.hpp \
+  /Users/danilamalafeev/Documents/New\ project/include/lob/backtest_engine.hpp \
   /Users/danilamalafeev/Documents/New\ project/include/lob/csv_parser.hpp \
+  /Users/danilamalafeev/Documents/New\ project/include/lob/inventory_skew_strategy.hpp \
   /Users/danilamalafeev/Documents/New\ project/include/lob/order.hpp \
   /Users/danilamalafeev/Documents/New\ project/include/lob/order_book.hpp \
   /Users/danilamalafeev/Documents/New\ project/include/lob/price_level.hpp \
+  /Users/danilamalafeev/Documents/New\ project/include/lob/strategy.hpp \
   /Users/danilamalafeev/Documents/New\ project/include/lob/trade.hpp
 
 
@@ -994,7 +998,13 @@ CMakeFiles/lob_backtest.dir/src/main_backtest.cpp.o: /Users/danilamalafeev/Docum
 
 /Users/danilamalafeev/Documents/New\ project/include/lob/price_level.hpp:
 
+/Users/danilamalafeev/Documents/New\ project/include/lob/inventory_skew_strategy.hpp:
+
 /Users/danilamalafeev/Documents/New\ project/include/lob/csv_parser.hpp:
+
+/Users/danilamalafeev/Documents/New\ project/include/lob/backtest_engine.hpp:
+
+/Users/danilamalafeev/Documents/New\ project/include/lob/analytics.hpp:
 
 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/17/include/stdint.h:
 
@@ -2485,6 +2495,8 @@ CMakeFiles/lob_backtest.dir/src/main_backtest.cpp.o: /Users/danilamalafeev/Docum
 /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1/__chrono/system_clock.h:
 
 /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1/__algorithm/ranges_partial_sort.h:
+
+/Users/danilamalafeev/Documents/New\ project/include/lob/strategy.hpp:
 
 /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1/__algorithm/ranges_shuffle.h:
 

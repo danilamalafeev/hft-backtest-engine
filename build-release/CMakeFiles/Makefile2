@@ -209,12 +209,12 @@ _deps/googletest-build/googletest/clean: _deps/googletest-build/googletest/CMake
 CMakeFiles/lob_core.dir/all:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/lob_core.dir/build.make CMakeFiles/lob_core.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/lob_core.dir/build.make CMakeFiles/lob_core.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir="/Users/danilamalafeev/Documents/New project/build-release/CMakeFiles" --progress-num=35,36,37 "Built target lob_core"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir="/Users/danilamalafeev/Documents/New project/build-release/CMakeFiles" --progress-num=35,36,37,38 "Built target lob_core"
 .PHONY : CMakeFiles/lob_core.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/lob_core.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start "/Users/danilamalafeev/Documents/New project/build-release/CMakeFiles" 3
+	$(CMAKE_COMMAND) -E cmake_progress_start "/Users/danilamalafeev/Documents/New project/build-release/CMakeFiles" 4
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/lob_core.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start "/Users/danilamalafeev/Documents/New project/build-release/CMakeFiles" 0
 .PHONY : CMakeFiles/lob_core.dir/rule
@@ -226,7 +226,7 @@ lob_core: CMakeFiles/lob_core.dir/rule
 # codegen rule for target.
 CMakeFiles/lob_core.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/lob_core.dir/build.make CMakeFiles/lob_core.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir="/Users/danilamalafeev/Documents/New project/build-release/CMakeFiles" --progress-num=35,36,37 "Finished codegen for target lob_core"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir="/Users/danilamalafeev/Documents/New project/build-release/CMakeFiles" --progress-num=35,36,37,38 "Finished codegen for target lob_core"
 .PHONY : CMakeFiles/lob_core.dir/codegen
 
 # clean rule for target.
@@ -243,12 +243,12 @@ CMakeFiles/lob_tests.dir/all: _deps/googletest-build/googletest/CMakeFiles/gtest
 CMakeFiles/lob_tests.dir/all: _deps/googletest-build/googletest/CMakeFiles/gtest_main.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/lob_tests.dir/build.make CMakeFiles/lob_tests.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/lob_tests.dir/build.make CMakeFiles/lob_tests.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir="/Users/danilamalafeev/Documents/New project/build-release/CMakeFiles" --progress-num=38,39 "Built target lob_tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir="/Users/danilamalafeev/Documents/New project/build-release/CMakeFiles" --progress-num=39,40 "Built target lob_tests"
 .PHONY : CMakeFiles/lob_tests.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/lob_tests.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start "/Users/danilamalafeev/Documents/New project/build-release/CMakeFiles" 9
+	$(CMAKE_COMMAND) -E cmake_progress_start "/Users/danilamalafeev/Documents/New project/build-release/CMakeFiles" 10
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/lob_tests.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start "/Users/danilamalafeev/Documents/New project/build-release/CMakeFiles" 0
 .PHONY : CMakeFiles/lob_tests.dir/rule
@@ -260,7 +260,7 @@ lob_tests: CMakeFiles/lob_tests.dir/rule
 # codegen rule for target.
 CMakeFiles/lob_tests.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/lob_tests.dir/build.make CMakeFiles/lob_tests.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir="/Users/danilamalafeev/Documents/New project/build-release/CMakeFiles" --progress-num=38,39 "Finished codegen for target lob_tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir="/Users/danilamalafeev/Documents/New project/build-release/CMakeFiles" --progress-num=39,40 "Finished codegen for target lob_tests"
 .PHONY : CMakeFiles/lob_tests.dir/codegen
 
 # clean rule for target.
@@ -282,7 +282,7 @@ CMakeFiles/lob_benchmarks.dir/all: _deps/googlebenchmark-build/src/CMakeFiles/be
 
 # Build rule for subdir invocation for target.
 CMakeFiles/lob_benchmarks.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start "/Users/danilamalafeev/Documents/New project/build-release/CMakeFiles" 27
+	$(CMAKE_COMMAND) -E cmake_progress_start "/Users/danilamalafeev/Documents/New project/build-release/CMakeFiles" 28
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/lob_benchmarks.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start "/Users/danilamalafeev/Documents/New project/build-release/CMakeFiles" 0
 .PHONY : CMakeFiles/lob_benchmarks.dir/rule
@@ -314,7 +314,7 @@ CMakeFiles/lob_backtest.dir/all: CMakeFiles/lob_core.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/lob_backtest.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start "/Users/danilamalafeev/Documents/New project/build-release/CMakeFiles" 5
+	$(CMAKE_COMMAND) -E cmake_progress_start "/Users/danilamalafeev/Documents/New project/build-release/CMakeFiles" 6
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/lob_backtest.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start "/Users/danilamalafeev/Documents/New project/build-release/CMakeFiles" 0
 .PHONY : CMakeFiles/lob_backtest.dir/rule
@@ -346,7 +346,7 @@ CMakeFiles/tests.dir/all: CMakeFiles/lob_tests.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/tests.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start "/Users/danilamalafeev/Documents/New project/build-release/CMakeFiles" 9
+	$(CMAKE_COMMAND) -E cmake_progress_start "/Users/danilamalafeev/Documents/New project/build-release/CMakeFiles" 10
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/tests.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start "/Users/danilamalafeev/Documents/New project/build-release/CMakeFiles" 0
 .PHONY : CMakeFiles/tests.dir/rule

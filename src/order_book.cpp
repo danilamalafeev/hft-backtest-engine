@@ -8,6 +8,53 @@
 
 namespace lob {
 
+double OrderBook::get_best_bid() const noexcept {
+    return bids_.empty() ? 0.0 : bids_.begin()->first;
+}
+
+double OrderBook::get_best_ask() const noexcept {
+    return asks_.empty() ? 0.0 : asks_.begin()->first;
+}
+
+void OrderBook::get_l2_snapshot(
+    std::vector<PriceLevelInfo>& bids_out,
+    std::vector<PriceLevelInfo>& asks_out,
+    int depth
+) const {
+    bids_out.clear();
+    asks_out.clear();
+
+    if (depth <= 0) {
+        return;
+    }
+
+    int bid_levels = 0;
+    for (auto bid_it = bids_.begin(); bid_it != bids_.end() && bid_levels < depth; ++bid_it, ++bid_levels) {
+        double total_quantity = 0.0;
+        for (const Order& order : bid_it->second.orders) {
+            total_quantity += static_cast<double>(order.quantity);
+        }
+
+        bids_out.push_back(PriceLevelInfo {
+            .price = bid_it->first,
+            .total_qty = total_quantity,
+        });
+    }
+
+    int ask_levels = 0;
+    for (auto ask_it = asks_.begin(); ask_it != asks_.end() && ask_levels < depth; ++ask_it, ++ask_levels) {
+        double total_quantity = 0.0;
+        for (const Order& order : ask_it->second.orders) {
+            total_quantity += static_cast<double>(order.quantity);
+        }
+
+        asks_out.push_back(PriceLevelInfo {
+            .price = ask_it->first,
+            .total_qty = total_quantity,
+        });
+    }
+}
+
 void OrderBook::add_resting_order(const Order& order) {
     if (order_index_.contains(order.id)) {
         throw std::invalid_argument("Duplicate order id");
@@ -66,15 +113,22 @@ void OrderBook::add_resting_order(const Order& order) {
 }
 
 std::vector<Trade> OrderBook::process_order(const Order& order) {
+    std::vector<Trade> trades {};
+    process_order(order, trades);
+    return trades;
+}
+
+void OrderBook::process_order(const Order& order, std::vector<Trade>& trades) {
+    trades.clear();
+
     if (order.quantity == 0U) {
-        return {};
+        return;
     }
 
     if (order_index_.contains(order.id)) {
         throw std::invalid_argument("Duplicate order id");
     }
 
-    std::vector<Trade> trades {};
     Order incoming_order {order};
 
     if (incoming_order.side == Side::Buy) {
@@ -142,8 +196,6 @@ std::vector<Trade> OrderBook::process_order(const Order& order) {
     if (incoming_order.quantity > 0U) {
         add_resting_order(incoming_order);
     }
-
-    return trades;
 }
 
 bool OrderBook::cancel_order(std::uint64_t order_id) {

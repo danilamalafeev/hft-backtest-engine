@@ -1,6 +1,12 @@
 [
 {
   "directory": "/Users/danilamalafeev/Documents/New project/build-release",
+  "command": "/usr/bin/c++  -I\"/Users/danilamalafeev/Documents/New project/include\" -O3 -DNDEBUG -std=c++20 -arch arm64 -o CMakeFiles/lob_core.dir/src/backtest_engine.cpp.o -c \"/Users/danilamalafeev/Documents/New project/src/backtest_engine.cpp\"",
+  "file": "/Users/danilamalafeev/Documents/New project/src/backtest_engine.cpp",
+  "output": "CMakeFiles/lob_core.dir/src/backtest_engine.cpp.o"
+},
+{
+  "directory": "/Users/danilamalafeev/Documents/New project/build-release",
   "command": "/usr/bin/c++  -I\"/Users/danilamalafeev/Documents/New project/include\" -O3 -DNDEBUG -std=c++20 -arch arm64 -o CMakeFiles/lob_core.dir/src/csv_parser.cpp.o -c \"/Users/danilamalafeev/Documents/New project/src/csv_parser.cpp\"",
   "file": "/Users/danilamalafeev/Documents/New project/src/csv_parser.cpp",
   "output": "CMakeFiles/lob_core.dir/src/csv_parser.cpp.o"

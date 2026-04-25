@@ -993,6 +993,7 @@ CMakeFiles/lob_tests.dir/tests/test_lob.cpp.o
  /Users/danilamalafeev/Documents/New project/build-release/_deps/googletest-src/googletest/include/gtest/internal/gtest-port.h
  /Users/danilamalafeev/Documents/New project/build-release/_deps/googletest-src/googletest/include/gtest/internal/gtest-string.h
  /Users/danilamalafeev/Documents/New project/build-release/_deps/googletest-src/googletest/include/gtest/internal/gtest-type-util.h
+ /Users/danilamalafeev/Documents/New project/include/lob/analytics.hpp
  /Users/danilamalafeev/Documents/New project/include/lob/order.hpp
  /Users/danilamalafeev/Documents/New project/include/lob/order_book.hpp
  /Users/danilamalafeev/Documents/New project/include/lob/price_level.hpp

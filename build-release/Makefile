@@ -338,6 +338,30 @@ benchmarks/bench_order_book.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/lob_benchmarks.dir/build.make CMakeFiles/lob_benchmarks.dir/benchmarks/bench_order_book.cpp.s
 .PHONY : benchmarks/bench_order_book.cpp.s
 
+src/backtest_engine.o: src/backtest_engine.cpp.o
+.PHONY : src/backtest_engine.o
+
+# target to build an object file
+src/backtest_engine.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/lob_core.dir/build.make CMakeFiles/lob_core.dir/src/backtest_engine.cpp.o
+.PHONY : src/backtest_engine.cpp.o
+
+src/backtest_engine.i: src/backtest_engine.cpp.i
+.PHONY : src/backtest_engine.i
+
+# target to preprocess a source file
+src/backtest_engine.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/lob_core.dir/build.make CMakeFiles/lob_core.dir/src/backtest_engine.cpp.i
+.PHONY : src/backtest_engine.cpp.i
+
+src/backtest_engine.s: src/backtest_engine.cpp.s
+.PHONY : src/backtest_engine.s
+
+# target to generate assembly for a file
+src/backtest_engine.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/lob_core.dir/build.make CMakeFiles/lob_core.dir/src/backtest_engine.cpp.s
+.PHONY : src/backtest_engine.cpp.s
+
 src/csv_parser.o: src/csv_parser.cpp.o
 .PHONY : src/csv_parser.o
 
@@ -461,6 +485,9 @@ help:
 	@echo "... benchmarks/bench_order_book.o"
 	@echo "... benchmarks/bench_order_book.i"
 	@echo "... benchmarks/bench_order_book.s"
+	@echo "... src/backtest_engine.o"
+	@echo "... src/backtest_engine.i"
+	@echo "... src/backtest_engine.s"
 	@echo "... src/csv_parser.o"
 	@echo "... src/csv_parser.i"
 	@echo "... src/csv_parser.s"
