@@ -43,6 +43,15 @@ public:
         std::filesystem::path trace_path {"trace_log.csv"};
     };
 
+    struct ExecutionDiagnostics {
+        std::uint64_t maker_fills_count {};
+        std::uint64_t taker_fills_count {};
+        double maker_volume {};
+        double taker_volume {};
+        double maker_notional {};
+        double taker_notional {};
+    };
+
     struct Result {
         CsvParser::ReplayStats replay_stats {};
         double initial_cash {};
@@ -50,6 +59,7 @@ public:
         std::int64_t final_position {};
         double final_mid_price {};
         std::uint64_t dropped_pending_orders {};
+        ExecutionDiagnostics execution {};
         std::vector<double> equity_curve {};
     };
 
@@ -212,6 +222,7 @@ private:
     std::uint64_t next_equity_sample_timestamp_ {};
     std::uint64_t current_time_ns_ {};
     std::uint64_t dropped_pending_orders_ {};
+    ExecutionDiagnostics execution_ {};
     double cash_ {};
     std::int64_t position_ {};
 };

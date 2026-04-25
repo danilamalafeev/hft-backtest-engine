@@ -5,6 +5,8 @@
 #include <cstdint>
 #include <vector>
 
+#include "lob/backtest_engine.hpp"
+
 namespace lob {
 
 struct BacktestAnalytics {
@@ -12,12 +14,31 @@ struct BacktestAnalytics {
     double sharpe_ratio {};
     double max_drawdown {};
     double max_drawdown_pct {};
+    std::uint64_t maker_fills_count {};
+    std::uint64_t taker_fills_count {};
+    double maker_volume {};
+    double taker_volume {};
+    double maker_notional {};
+    double taker_notional {};
+    double turnover {};
 
     [[nodiscard]] static BacktestAnalytics analyze(
         const std::vector<double>& equity_curve,
-        std::uint64_t sample_interval_ms = 1'000U
+        std::uint64_t sample_interval_ms = 1'000U,
+        const BacktestEngine::ExecutionDiagnostics& execution = {},
+        double initial_equity = 0.0
     ) {
         BacktestAnalytics analytics {};
+        analytics.maker_fills_count = execution.maker_fills_count;
+        analytics.taker_fills_count = execution.taker_fills_count;
+        analytics.maker_volume = execution.maker_volume;
+        analytics.taker_volume = execution.taker_volume;
+        analytics.maker_notional = execution.maker_notional;
+        analytics.taker_notional = execution.taker_notional;
+        analytics.turnover = initial_equity > 0.0
+            ? (execution.maker_notional + execution.taker_notional) / initial_equity
+            : 0.0;
+
         if (equity_curve.empty()) {
             return analytics;
         }

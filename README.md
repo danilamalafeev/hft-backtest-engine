@@ -92,7 +92,7 @@ python3 scripts/download_binance_data.py
 The backtester prints a human-readable tear sheet and a machine-readable final line:
 
 ```text
-RESULT_CSV,spread,gamma,imbalance,pnl,sharpe,max_dd
+RESULT_CSV,spread,gamma,imbalance,pnl,sharpe,max_dd,maker_count,taker_count,maker_notional,taker_notional,turnover
 ```
 
 ## Fees And Latency

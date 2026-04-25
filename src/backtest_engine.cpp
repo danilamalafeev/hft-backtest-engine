@@ -45,6 +45,7 @@ BacktestEngine::Result BacktestEngine::run(const std::filesystem::path& file_pat
     next_equity_sample_timestamp_ = 0U;
     current_time_ns_ = 0U;
     dropped_pending_orders_ = 0U;
+    execution_ = ExecutionDiagnostics {};
     cash_ = config_.initial_cash;
     position_ = 0;
     equity_curve_.clear();
@@ -82,6 +83,7 @@ BacktestEngine::Result BacktestEngine::run(const std::filesystem::path& file_pat
     }
 
     result.dropped_pending_orders = dropped_pending_orders_;
+    result.execution = execution_;
     result.final_cash = cash_;
     result.final_position = position_;
     result.final_mid_price = snapshot_.mid_price;
@@ -195,11 +197,22 @@ void BacktestEngine::route_trades(const std::vector<Trade>& trades) {
 }
 
 void BacktestEngine::route_strategy_fill(const StrategyFill& fill) {
-    const double notional = fill.price * QuantityToUnits(fill.quantity);
+    const double quantity_units = QuantityToUnits(fill.quantity);
+    const double notional = fill.price * quantity_units;
     const double fee_bps = fill.liquidity_role == LiquidityRole::Maker
         ? config_.maker_fee_bps
         : config_.taker_fee_bps;
     const double fee = notional * fee_bps * 0.0001;
+
+    if (fill.liquidity_role == LiquidityRole::Maker) {
+        ++execution_.maker_fills_count;
+        execution_.maker_volume += quantity_units;
+        execution_.maker_notional += notional;
+    } else {
+        ++execution_.taker_fills_count;
+        execution_.taker_volume += quantity_units;
+        execution_.taker_notional += notional;
+    }
 
     const std::size_t live_order_index = find_live_order_index(fill.order_id);
     if (live_order_index != kInvalidOrderIndex) {

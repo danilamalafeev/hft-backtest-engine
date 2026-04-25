@@ -125,7 +125,12 @@ int RunBacktest(
         ? result.replay_stats.last_timestamp - result.replay_stats.first_timestamp
         : 0U;
     const lob::BacktestAnalytics analytics =
-        lob::BacktestAnalytics::analyze(result.equity_curve, kEquitySampleIntervalMs);
+        lob::BacktestAnalytics::analyze(
+            result.equity_curve,
+            kEquitySampleIntervalMs,
+            result.execution,
+            result.initial_cash
+        );
 
     std::cout << "Total Orders Processed: " << result.replay_stats.orders_processed << '\n';
     std::cout << "Generated Trades: " << result.replay_stats.generated_trades << '\n';
@@ -145,6 +150,13 @@ int RunBacktest(
     std::cout << "Sharpe Ratio: " << std::fixed << std::setprecision(4) << analytics.sharpe_ratio << '\n';
     std::cout << "Max Drawdown: " << std::fixed << std::setprecision(2) << analytics.max_drawdown
               << " (" << std::setprecision(2) << (analytics.max_drawdown_pct * 100.0) << "%)\n";
+    std::cout << "Maker Fills: " << analytics.maker_fills_count << '\n';
+    std::cout << "Taker Fills: " << analytics.taker_fills_count << '\n';
+    std::cout << "Maker Volume: " << std::fixed << std::setprecision(8) << analytics.maker_volume << '\n';
+    std::cout << "Taker Volume: " << std::fixed << std::setprecision(8) << analytics.taker_volume << '\n';
+    std::cout << "Maker Notional: " << std::fixed << std::setprecision(2) << analytics.maker_notional << '\n';
+    std::cout << "Taker Notional: " << std::fixed << std::setprecision(2) << analytics.taker_notional << '\n';
+    std::cout << "Turnover: " << std::fixed << std::setprecision(8) << analytics.turnover << '\n';
     if (runtime_options.trace_enabled) {
         std::cout << "Trace Log: trace_log.csv\n";
     }
@@ -155,7 +167,12 @@ int RunBacktest(
               << imbalance_threshold << ','
               << analytics.total_realized_pnl << ','
               << analytics.sharpe_ratio << ','
-              << analytics.max_drawdown << '\n';
+              << analytics.max_drawdown << ','
+              << analytics.maker_fills_count << ','
+              << analytics.taker_fills_count << ','
+              << analytics.maker_notional << ','
+              << analytics.taker_notional << ','
+              << analytics.turnover << '\n';
 
     return 0;
 }
