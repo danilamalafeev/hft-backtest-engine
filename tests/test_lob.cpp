@@ -102,16 +102,19 @@ TEST(OrderBookTest, ProcessOrderMatchesCrossSpreadUsingPriceTimePriority) {
     ASSERT_EQ(trades.size(), 3U);
     EXPECT_EQ(trades[0].buyer_id, 20U);
     EXPECT_EQ(trades[0].seller_id, 10U);
+    EXPECT_EQ(trades[0].taker_order_id, 20U);
     EXPECT_DOUBLE_EQ(trades[0].price, 100.00);
     EXPECT_EQ(trades[0].quantity, 5U);
 
     EXPECT_EQ(trades[1].buyer_id, 20U);
     EXPECT_EQ(trades[1].seller_id, 11U);
+    EXPECT_EQ(trades[1].taker_order_id, 20U);
     EXPECT_DOUBLE_EQ(trades[1].price, 100.00);
     EXPECT_EQ(trades[1].quantity, 7U);
 
     EXPECT_EQ(trades[2].buyer_id, 20U);
     EXPECT_EQ(trades[2].seller_id, 12U);
+    EXPECT_EQ(trades[2].taker_order_id, 20U);
     EXPECT_DOUBLE_EQ(trades[2].price, 101.00);
     EXPECT_EQ(trades[2].quantity, 2U);
 

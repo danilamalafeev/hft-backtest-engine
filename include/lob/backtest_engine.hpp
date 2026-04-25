@@ -1,9 +1,12 @@
 #pragma once
 
+#include <array>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
+#include <random>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "lob/csv_parser.hpp"
@@ -14,10 +17,28 @@ namespace lob {
 
 class BacktestEngine final : public OrderGateway {
 public:
+    enum class LatencyDistribution : std::uint8_t {
+        None,
+        Exponential,
+        LogNormal
+    };
+
+    struct LatencyConfig {
+        std::uint64_t base_latency_ns {};
+        LatencyDistribution distribution {LatencyDistribution::None};
+        double jitter_mean_ns {};
+        double lognormal_mu {};
+        double lognormal_sigma {};
+        std::uint64_t rng_seed {0x9E3779B97F4A7C15ULL};
+    };
+
     struct Config {
         double initial_cash {100'000'000.0};
-        std::uint64_t equity_sample_interval_ms {1'000U};
+        std::uint64_t equity_sample_interval_ns {1'000'000'000ULL};
         std::size_t equity_curve_reserve {100'000U};
+        double maker_fee_bps {};
+        double taker_fee_bps {};
+        LatencyConfig latency {};
         bool trace_enabled {};
         std::filesystem::path trace_path {"trace_log.csv"};
     };
@@ -28,6 +49,7 @@ public:
         double final_cash {};
         std::int64_t final_position {};
         double final_mid_price {};
+        std::uint64_t dropped_pending_orders {};
         std::vector<double> equity_curve {};
     };
 
@@ -47,14 +69,109 @@ public:
     [[nodiscard]] std::uint64_t current_timestamp() const noexcept override;
 
 private:
+    enum class PendingCommandType : std::uint8_t {
+        Submit,
+        Cancel
+    };
+
+    struct PendingOrder {
+        PendingCommandType type {PendingCommandType::Submit};
+        std::uint64_t release_time_ns {};
+        std::uint64_t order_id {};
+        Side side {Side::Buy};
+        double price {};
+        std::uint64_t quantity {};
+    };
+
+    template <std::size_t Capacity>
+    class PendingOrderMinHeap {
+    public:
+        [[nodiscard]] bool empty() const noexcept {
+            return size_ == 0U;
+        }
+
+        [[nodiscard]] const PendingOrder& top() const noexcept {
+            return heap_[0];
+        }
+
+        [[nodiscard]] std::size_t size() const noexcept {
+            return size_;
+        }
+
+        void clear() noexcept {
+            size_ = 0U;
+        }
+
+        bool push(const PendingOrder& order) noexcept {
+            if (size_ == Capacity) {
+                return false;
+            }
+
+            std::size_t index = size_++;
+            heap_[index] = order;
+
+            while (index > 0U) {
+                const std::size_t parent = (index - 1U) / 2U;
+                if (heap_[parent].release_time_ns <= heap_[index].release_time_ns) {
+                    break;
+                }
+
+                std::swap(heap_[parent], heap_[index]);
+                index = parent;
+            }
+
+            return true;
+        }
+
+        void pop() noexcept {
+            if (size_ == 0U) {
+                return;
+            }
+
+            heap_[0] = heap_[--size_];
+            std::size_t index = 0U;
+
+            while (true) {
+                const std::size_t left = (index * 2U) + 1U;
+                const std::size_t right = left + 1U;
+                if (left >= size_) {
+                    break;
+                }
+
+                std::size_t smallest = left;
+                if (right < size_ && heap_[right].release_time_ns < heap_[left].release_time_ns) {
+                    smallest = right;
+                }
+
+                if (heap_[index].release_time_ns <= heap_[smallest].release_time_ns) {
+                    break;
+                }
+
+                std::swap(heap_[index], heap_[smallest]);
+                index = smallest;
+            }
+        }
+
+    private:
+        std::array<PendingOrder, Capacity> heap_ {};
+        std::size_t size_ {};
+    };
+
     struct OwnOrderState {
         Side side {Side::Buy};
         std::uint64_t remaining_quantity {};
+        bool active {};
+        bool canceled {};
     };
+
+    static constexpr std::size_t kPendingOrderCapacity = 16'384U;
 
     void process_market_order(const Order& order);
     void route_trades(const std::vector<Trade>& trades);
     void route_strategy_fill(const StrategyFill& fill);
+    [[nodiscard]] std::uint64_t release_pending_orders(std::uint64_t now_ns);
+    void execute_pending_order(const PendingOrder& pending);
+    [[nodiscard]] std::uint64_t sample_latency_ns();
     void sample_equity(std::uint64_t timestamp);
     void update_snapshot(std::uint64_t timestamp, double fallback_price);
     void open_trace_log();
@@ -69,13 +186,19 @@ private:
     CsvParser parser_ {};
     OrderBook order_book_ {};
     MarketSnapshot snapshot_ {};
+    PendingOrderMinHeap<kPendingOrderCapacity> pending_orders_ {};
     std::vector<Trade> trade_buffer_ {};
     std::unordered_map<std::uint64_t, OwnOrderState> own_orders_ {};
     std::vector<StrategyFill> pending_fills_ {};
     std::vector<double> equity_curve_ {};
     std::ofstream trace_log_ {};
+    std::mt19937_64 rng_ {};
+    std::exponential_distribution<double> exponential_jitter_ {};
+    std::lognormal_distribution<double> lognormal_jitter_ {};
     std::uint64_t next_strategy_order_id_ {1ULL << 63U};
     std::uint64_t next_equity_sample_timestamp_ {};
+    std::uint64_t current_time_ns_ {};
+    std::uint64_t dropped_pending_orders_ {};
     double cash_ {};
     std::int64_t position_ {};
 };

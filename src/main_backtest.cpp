@@ -46,14 +46,47 @@ namespace {
     }
 }
 
+[[nodiscard]] std::uint64_t ParseUint64Arg(const char* value, const char* name) {
+    try {
+        return static_cast<std::uint64_t>(std::stoull(value));
+    } catch (const std::exception&) {
+        throw std::invalid_argument(std::string {"Invalid "} + name + ": " + value);
+    }
+}
+
+[[nodiscard]] lob::BacktestEngine::LatencyDistribution ParseLatencyDistribution(const char* value) {
+    const std::string distribution {value};
+    if (distribution == "none") {
+        return lob::BacktestEngine::LatencyDistribution::None;
+    }
+
+    if (distribution == "exponential") {
+        return lob::BacktestEngine::LatencyDistribution::Exponential;
+    }
+
+    if (distribution == "lognormal") {
+        return lob::BacktestEngine::LatencyDistribution::LogNormal;
+    }
+
+    throw std::invalid_argument("Invalid latency distribution: " + distribution);
+}
+
+struct RuntimeOptions {
+    double maker_fee_bps {};
+    double taker_fee_bps {};
+    lob::BacktestEngine::LatencyConfig latency {};
+    bool trace_enabled {};
+};
+
 int RunBacktest(
     const std::filesystem::path& csv_path,
     double base_spread,
     double gamma,
     double imbalance_threshold,
-    bool trace_enabled
+    const RuntimeOptions& runtime_options
 ) {
     constexpr std::uint64_t kEquitySampleIntervalMs = 1'000U;
+    constexpr std::uint64_t kEquitySampleIntervalNs = kEquitySampleIntervalMs * 1'000'000ULL;
     constexpr double kQuantityScale = 100'000'000.0;
 
     lob::InventorySkewStrategy strategy {lob::InventorySkewStrategy::Config {
@@ -63,13 +96,16 @@ int RunBacktest(
         .risk_aversion_gamma = gamma,
         .imbalance_threshold = imbalance_threshold,
         .quote_quantity = 1'000'000U,
-        .refresh_interval_ms = 1'000U,
+        .refresh_interval_ns = 1'000'000'000ULL,
     }};
     lob::BacktestEngine engine {strategy, lob::BacktestEngine::Config {
         .initial_cash = 100'000'000.0,
-        .equity_sample_interval_ms = kEquitySampleIntervalMs,
+        .equity_sample_interval_ns = kEquitySampleIntervalNs,
         .equity_curve_reserve = 100'000U,
-        .trace_enabled = trace_enabled,
+        .maker_fee_bps = runtime_options.maker_fee_bps,
+        .taker_fee_bps = runtime_options.taker_fee_bps,
+        .latency = runtime_options.latency,
+        .trace_enabled = runtime_options.trace_enabled,
         .trace_path = "trace_log.csv",
     }};
 
@@ -109,7 +145,7 @@ int RunBacktest(
     std::cout << "Sharpe Ratio: " << std::fixed << std::setprecision(4) << analytics.sharpe_ratio << '\n';
     std::cout << "Max Drawdown: " << std::fixed << std::setprecision(2) << analytics.max_drawdown
               << " (" << std::setprecision(2) << (analytics.max_drawdown_pct * 100.0) << "%)\n";
-    if (trace_enabled) {
+    if (runtime_options.trace_enabled) {
         std::cout << "Trace Log: trace_log.csv\n";
     }
     std::cout << "RESULT_CSV,"
@@ -129,11 +165,14 @@ int RunBacktest(
 int main(int argc, char* argv[]) {
     try {
         if (argc < 2) {
-            std::cerr << "Usage: lob_backtest <binance_trades.csv> [base_spread gamma imbalance_threshold] [--trace]" << '\n';
+            std::cerr << "Usage: lob_backtest <binance_trades.csv> [base_spread gamma imbalance_threshold] [--trace]"
+                      << " [--maker-fee-bps x] [--taker-fee-bps x] [--base-latency-ns n]"
+                      << " [--latency-dist none|exponential|lognormal] [--jitter-mean-ns n]"
+                      << " [--lognormal-mu x] [--lognormal-sigma x] [--latency-seed n]" << '\n';
             return 1;
         }
 
-        bool trace_enabled = false;
+        RuntimeOptions runtime_options {};
         std::vector<const char*> positional_args {};
         positional_args.reserve(4U);
         positional_args.push_back(argv[1]);
@@ -141,14 +180,33 @@ int main(int argc, char* argv[]) {
         for (int index = 2; index < argc; ++index) {
             const std::string argument {argv[index]};
             if (argument == "--trace") {
-                trace_enabled = true;
+                runtime_options.trace_enabled = true;
+            } else if (argument == "--maker-fee-bps" && index + 1 < argc) {
+                runtime_options.maker_fee_bps = ParseDoubleArg(argv[++index], "maker_fee_bps");
+            } else if (argument == "--taker-fee-bps" && index + 1 < argc) {
+                runtime_options.taker_fee_bps = ParseDoubleArg(argv[++index], "taker_fee_bps");
+            } else if (argument == "--base-latency-ns" && index + 1 < argc) {
+                runtime_options.latency.base_latency_ns = ParseUint64Arg(argv[++index], "base_latency_ns");
+            } else if (argument == "--latency-dist" && index + 1 < argc) {
+                runtime_options.latency.distribution = ParseLatencyDistribution(argv[++index]);
+            } else if (argument == "--jitter-mean-ns" && index + 1 < argc) {
+                runtime_options.latency.jitter_mean_ns = ParseDoubleArg(argv[++index], "jitter_mean_ns");
+            } else if (argument == "--lognormal-mu" && index + 1 < argc) {
+                runtime_options.latency.lognormal_mu = ParseDoubleArg(argv[++index], "lognormal_mu");
+            } else if (argument == "--lognormal-sigma" && index + 1 < argc) {
+                runtime_options.latency.lognormal_sigma = ParseDoubleArg(argv[++index], "lognormal_sigma");
+            } else if (argument == "--latency-seed" && index + 1 < argc) {
+                runtime_options.latency.rng_seed = ParseUint64Arg(argv[++index], "latency_seed");
             } else {
                 positional_args.push_back(argv[index]);
             }
         }
 
         if (positional_args.size() != 1U && positional_args.size() != 4U) {
-            std::cerr << "Usage: lob_backtest <binance_trades.csv> [base_spread gamma imbalance_threshold] [--trace]" << '\n';
+            std::cerr << "Usage: lob_backtest <binance_trades.csv> [base_spread gamma imbalance_threshold] [--trace]"
+                      << " [--maker-fee-bps x] [--taker-fee-bps x] [--base-latency-ns n]"
+                      << " [--latency-dist none|exponential|lognormal] [--jitter-mean-ns n]"
+                      << " [--lognormal-mu x] [--lognormal-sigma x] [--latency-seed n]" << '\n';
             return 1;
         }
 
@@ -162,7 +220,15 @@ int main(int argc, char* argv[]) {
             ? ParseDoubleArg(positional_args[3], "imbalance_threshold")
             : 3.0;
 
-        return RunBacktest(argv[1], base_spread, gamma, imbalance_threshold, trace_enabled);
+        if (runtime_options.latency.distribution == lob::BacktestEngine::LatencyDistribution::None) {
+            if (runtime_options.latency.lognormal_sigma > 0.0) {
+                runtime_options.latency.distribution = lob::BacktestEngine::LatencyDistribution::LogNormal;
+            } else if (runtime_options.latency.jitter_mean_ns > 0.0) {
+                runtime_options.latency.distribution = lob::BacktestEngine::LatencyDistribution::Exponential;
+            }
+        }
+
+        return RunBacktest(argv[1], base_spread, gamma, imbalance_threshold, runtime_options);
     } catch (const std::exception& exception) {
         std::cerr << "Backtest failed: " << exception.what() << '\n';
         return 1;

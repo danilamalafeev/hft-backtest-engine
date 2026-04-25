@@ -29,22 +29,22 @@
         {
           "name": "ProcessOrderRestsResidualQuantityAfterPartialIncomingFill",
           "file": "\/Users\/danilamalafeev\/Documents\/New project\/tests\/test_lob.cpp",
-          "line": 130
+          "line": 133
         },
         {
           "name": "CancelOrderRemovesEmptyBidPriceLevelAndIndexEntry",
           "file": "\/Users\/danilamalafeev\/Documents\/New project\/tests\/test_lob.cpp",
-          "line": 163
+          "line": 166
         },
         {
           "name": "CancelOrderReturnsFalseForUnknownId",
           "file": "\/Users\/danilamalafeev\/Documents\/New project\/tests\/test_lob.cpp",
-          "line": 193
+          "line": 196
         },
         {
           "name": "ExposesBestPricesAndL2Snapshot",
           "file": "\/Users\/danilamalafeev\/Documents\/New project\/tests\/test_lob.cpp",
-          "line": 198
+          "line": 201
         }
       ]
     },
@@ -55,7 +55,7 @@
         {
           "name": "ComputesPnlAndDrawdownFromEquityCurve",
           "file": "\/Users\/danilamalafeev\/Documents\/New project\/tests\/test_lob.cpp",
-          "line": 240
+          "line": 243
         }
       ]
     }

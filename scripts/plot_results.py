@@ -89,7 +89,7 @@ def main() -> int:
         height=850,
         legend={"orientation": "h", "yanchor": "bottom", "y": 1.02, "xanchor": "right", "x": 1.0},
     )
-    figure.update_xaxes(title_text="Virtual Timestamp (ms)", row=2, col=1)
+    figure.update_xaxes(title_text="Virtual Timestamp (ns)", row=2, col=1)
     figure.update_yaxes(title_text="Mid Price", row=1, col=1)
     figure.update_yaxes(title_text="PnL", row=2, col=1)
 

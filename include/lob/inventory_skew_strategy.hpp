@@ -17,7 +17,7 @@ public:
         double risk_aversion_gamma {2.0};
         double imbalance_threshold {3.0};
         std::uint64_t quote_quantity {1'000'000U};
-        std::uint64_t refresh_interval_ms {1'000U};
+        std::uint64_t refresh_interval_ns {1'000'000'000ULL};
     };
 
     InventorySkewStrategy() : InventorySkewStrategy(Config {}) {}
@@ -80,7 +80,7 @@ public:
             ask_remaining_quantity_ = config_.quote_quantity;
         }
 
-        next_refresh_timestamp_ = timestamp + config_.refresh_interval_ms;
+        next_refresh_timestamp_ = timestamp + config_.refresh_interval_ns;
     }
 
     void on_fill(const StrategyFill& fill, OrderGateway& gateway) override {

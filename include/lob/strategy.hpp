@@ -8,6 +8,11 @@
 
 namespace lob {
 
+enum class LiquidityRole : std::uint8_t {
+    Maker,
+    Taker
+};
+
 struct MarketSnapshot {
     std::uint64_t timestamp {};
     double best_bid {};
@@ -15,13 +20,16 @@ struct MarketSnapshot {
     double mid_price {};
 };
 
-struct StrategyFill {
+struct FillEvent {
     std::uint64_t order_id {};
     Side side {Side::Buy};
     double price {};
     std::uint64_t quantity {};
     std::uint64_t timestamp {};
+    LiquidityRole liquidity_role {LiquidityRole::Maker};
 };
+
+using StrategyFill = FillEvent;
 
 class OrderGateway {
 public:

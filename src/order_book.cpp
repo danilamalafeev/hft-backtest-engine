@@ -145,6 +145,7 @@ void OrderBook::process_order(const Order& order, std::vector<Trade>& trades) {
             trades.push_back(Trade {
                 .buyer_id = incoming_order.id,
                 .seller_id = resting_order_it->id,
+                .taker_order_id = incoming_order.id,
                 .price = resting_order_it->price,
                 .quantity = executed_quantity,
                 .timestamp = incoming_order.timestamp,
@@ -175,6 +176,7 @@ void OrderBook::process_order(const Order& order, std::vector<Trade>& trades) {
             trades.push_back(Trade {
                 .buyer_id = resting_order_it->id,
                 .seller_id = incoming_order.id,
+                .taker_order_id = incoming_order.id,
                 .price = resting_order_it->price,
                 .quantity = executed_quantity,
                 .timestamp = incoming_order.timestamp,

@@ -76,6 +76,15 @@ python3 scripts/download_binance_data.py
 # Run backtest with explicit parameters
 ./build-release/lob_backtest binance_trades.csv 20.0 0.1 2.0
 
+# Run with fees and stochastic latency
+./build-release/lob_backtest binance_trades.csv 20.0 0.1 2.0 \
+  --maker-fee-bps 1.0 \
+  --taker-fee-bps 5.0 \
+  --base-latency-ns 100000 \
+  --latency-dist exponential \
+  --jitter-mean-ns 50000 \
+  --latency-seed 42
+
 # Run backtest and write trace_log.csv for visualization
 ./build-release/lob_backtest binance_trades.csv 20.0 0.1 2.0 --trace
 ```
@@ -85,6 +94,20 @@ The backtester prints a human-readable tear sheet and a machine-readable final l
 ```text
 RESULT_CSV,spread,gamma,imbalance,pnl,sharpe,max_dd
 ```
+
+## Fees And Latency
+
+The engine supports exchange fees and event-time order latency:
+
+- `--maker-fee-bps`: fee applied when the bot's resting limit order is hit.
+- `--taker-fee-bps`: fee applied when the bot's arriving order crosses the book.
+- `--base-latency-ns`: deterministic latency added to every gateway submit/cancel.
+- `--latency-dist`: `none`, `exponential`, or `lognormal`.
+- `--jitter-mean-ns`: exponential jitter mean in nanoseconds.
+- `--lognormal-mu` / `--lognormal-sigma`: lognormal jitter parameters.
+- `--latency-seed`: deterministic PRNG seed for reproducible stochastic latency.
+
+Latency is modeled with virtual timestamps only. The engine samples jitter once per gateway request using a PRNG owned by `BacktestEngine`, then stores the request in a fixed-capacity min-heap keyed by exchange arrival time. The hot path does not allocate for pending order storage.
 
 ## Parameter Optimization
 
@@ -132,5 +155,6 @@ The chart has:
 ## Notes
 
 - CSV quantity values are parsed into fixed-point integer units scaled by `1e8`; PnL and displayed positions convert back to base units.
+- Trace timestamps are emitted in nanoseconds because latency simulation runs on nanosecond virtual time.
 - `test_orders.csv` is a simple unit-test style CSV and is not in the Binance replay format expected by the mmap parser.
 - The framework is research-oriented and does not model fees, latency, queue position probability, or exchange-specific order acknowledgements yet.
