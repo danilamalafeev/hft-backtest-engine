@@ -4,8 +4,8 @@
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
+#include <limits>
 #include <random>
-#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -157,20 +157,28 @@ private:
         std::size_t size_ {};
     };
 
-    struct OwnOrderState {
+    struct LiveOrder {
+        std::uint64_t order_id {};
         Side side {Side::Buy};
+        double price {};
         std::uint64_t remaining_quantity {};
+        std::uint64_t volume_ahead {};
         bool active {};
         bool canceled {};
     };
 
     static constexpr std::size_t kPendingOrderCapacity = 16'384U;
+    static constexpr std::size_t kLiveOrderCapacity = 16'384U;
+    static constexpr std::size_t kInvalidOrderIndex = std::numeric_limits<std::size_t>::max();
 
     void process_market_order(const Order& order);
     void route_trades(const std::vector<Trade>& trades);
     void route_strategy_fill(const StrategyFill& fill);
     [[nodiscard]] std::uint64_t release_pending_orders(std::uint64_t now_ns);
     void execute_pending_order(const PendingOrder& pending);
+    void sweep_book(LiveOrder& live_order, std::uint64_t timestamp);
+    void update_passive_queue_on_market_trade(const Order& market_order);
+    void apply_pessimistic_volume_update();
     [[nodiscard]] std::uint64_t sample_latency_ns();
     void sample_equity(std::uint64_t timestamp);
     void update_snapshot(std::uint64_t timestamp, double fallback_price);
@@ -180,6 +188,10 @@ private:
 
     [[nodiscard]] double current_equity() const noexcept;
     [[nodiscard]] bool is_strategy_order(std::uint64_t order_id) const noexcept;
+    [[nodiscard]] std::size_t find_live_order_index(std::uint64_t order_id) const noexcept;
+    [[nodiscard]] bool is_aggressive(const LiveOrder& live_order) const noexcept;
+    [[nodiscard]] bool add_live_order(const LiveOrder& live_order) noexcept;
+    void erase_live_order(std::size_t index) noexcept;
 
     Strategy& strategy_;
     Config config_ {};
@@ -188,7 +200,8 @@ private:
     MarketSnapshot snapshot_ {};
     PendingOrderMinHeap<kPendingOrderCapacity> pending_orders_ {};
     std::vector<Trade> trade_buffer_ {};
-    std::unordered_map<std::uint64_t, OwnOrderState> own_orders_ {};
+    std::array<LiveOrder, kLiveOrderCapacity> live_orders_ {};
+    std::size_t live_order_count_ {};
     std::vector<StrategyFill> pending_fills_ {};
     std::vector<double> equity_curve_ {};
     std::ofstream trace_log_ {};

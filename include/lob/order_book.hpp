@@ -51,6 +51,7 @@ public:
 
     [[nodiscard]] double get_best_bid() const noexcept;
     [[nodiscard]] double get_best_ask() const noexcept;
+    [[nodiscard]] std::uint64_t get_total_quantity_at_price(Side side, double price) const noexcept;
     void get_l2_snapshot(
         std::vector<PriceLevelInfo>& bids_out,
         std::vector<PriceLevelInfo>& asks_out,

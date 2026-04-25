@@ -16,6 +16,32 @@ double OrderBook::get_best_ask() const noexcept {
     return asks_.empty() ? 0.0 : asks_.begin()->first;
 }
 
+std::uint64_t OrderBook::get_total_quantity_at_price(Side side, double price) const noexcept {
+    std::uint64_t total_quantity = 0U;
+
+    if (side == Side::Buy) {
+        const auto level_it = bids_.find(price);
+        if (level_it == bids_.end()) {
+            return 0U;
+        }
+
+        for (const Order& order : level_it->second.orders) {
+            total_quantity += order.quantity;
+        }
+        return total_quantity;
+    }
+
+    const auto level_it = asks_.find(price);
+    if (level_it == asks_.end()) {
+        return 0U;
+    }
+
+    for (const Order& order : level_it->second.orders) {
+        total_quantity += order.quantity;
+    }
+    return total_quantity;
+}
+
 void OrderBook::get_l2_snapshot(
     std::vector<PriceLevelInfo>& bids_out,
     std::vector<PriceLevelInfo>& asks_out,

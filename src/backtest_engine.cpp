@@ -32,7 +32,6 @@ BacktestEngine::BacktestEngine(Strategy& strategy, Config config)
       cash_(config.initial_cash) {
     trade_buffer_.reserve(1'024U);
     pending_fills_.reserve(256U);
-    own_orders_.reserve(4'096U);
 }
 
 BacktestEngine::Result BacktestEngine::run(const std::filesystem::path& file_path) {
@@ -40,7 +39,7 @@ BacktestEngine::Result BacktestEngine::run(const std::filesystem::path& file_pat
     result.initial_cash = config_.initial_cash;
     order_book_ = OrderBook {};
     pending_orders_.clear();
-    own_orders_.clear();
+    live_order_count_ = 0U;
     snapshot_ = MarketSnapshot {};
     next_strategy_order_id_ = 1ULL << 63U;
     next_equity_sample_timestamp_ = 0U;
@@ -103,12 +102,18 @@ std::uint64_t BacktestEngine::submit_order(
     }
 
     const std::uint64_t release_time_ns = current_time_ns_ + sample_latency_ns();
-    own_orders_.emplace(order_id, OwnOrderState {
+    if (!add_live_order(LiveOrder {
+        .order_id = order_id,
         .side = side,
+        .price = price,
         .remaining_quantity = quantity,
+        .volume_ahead = 0U,
         .active = false,
         .canceled = false,
-    });
+    })) {
+        ++dropped_pending_orders_;
+        return order_id;
+    }
 
     if (!pending_orders_.push(PendingOrder {
         .type = PendingCommandType::Submit,
@@ -118,7 +123,7 @@ std::uint64_t BacktestEngine::submit_order(
         .price = price,
         .quantity = quantity,
     })) {
-        own_orders_.erase(order_id);
+        erase_live_order(find_live_order_index(order_id));
         ++dropped_pending_orders_;
     }
 
@@ -146,6 +151,8 @@ std::uint64_t BacktestEngine::current_timestamp() const noexcept {
 
 void BacktestEngine::process_market_order(const Order& order) {
     order_book_.process_order(order, trade_buffer_);
+    update_passive_queue_on_market_trade(order);
+    apply_pessimistic_volume_update();
 }
 
 void BacktestEngine::route_trades(const std::vector<Trade>& trades) {
@@ -194,15 +201,16 @@ void BacktestEngine::route_strategy_fill(const StrategyFill& fill) {
         : config_.taker_fee_bps;
     const double fee = notional * fee_bps * 0.0001;
 
-    auto own_order_it = own_orders_.find(fill.order_id);
-    if (own_order_it != own_orders_.end()) {
-        own_order_it->second.remaining_quantity =
-            own_order_it->second.remaining_quantity > fill.quantity
-                ? own_order_it->second.remaining_quantity - fill.quantity
+    const std::size_t live_order_index = find_live_order_index(fill.order_id);
+    if (live_order_index != kInvalidOrderIndex) {
+        LiveOrder& live_order = live_orders_[live_order_index];
+        live_order.remaining_quantity =
+            live_order.remaining_quantity > fill.quantity
+                ? live_order.remaining_quantity - fill.quantity
                 : 0U;
 
-        if (own_order_it->second.remaining_quantity == 0U) {
-            own_orders_.erase(own_order_it);
+        if (live_order.remaining_quantity == 0U) {
+            erase_live_order(live_order_index);
         }
     }
 
@@ -240,42 +248,184 @@ std::uint64_t BacktestEngine::release_pending_orders(std::uint64_t now_ns) {
 void BacktestEngine::execute_pending_order(const PendingOrder& pending) {
     trade_buffer_.clear();
 
-    auto own_order_it = own_orders_.find(pending.order_id);
+    const std::size_t live_order_index = find_live_order_index(pending.order_id);
     if (pending.type == PendingCommandType::Cancel) {
-        if (own_order_it == own_orders_.end()) {
+        if (live_order_index == kInvalidOrderIndex) {
             return;
         }
 
-        if (!own_order_it->second.active) {
-            own_order_it->second.canceled = true;
+        LiveOrder& live_order = live_orders_[live_order_index];
+        if (!live_order.active) {
+            live_order.canceled = true;
             return;
         }
 
-        if (order_book_.cancel_order(pending.order_id)) {
-            own_orders_.erase(own_order_it);
+        erase_live_order(live_order_index);
+        return;
+    }
+
+    if (live_order_index == kInvalidOrderIndex) {
+        return;
+    }
+
+    LiveOrder& live_order = live_orders_[live_order_index];
+    if (live_order.canceled) {
+        erase_live_order(live_order_index);
+        return;
+    }
+
+    if (is_aggressive(live_order)) {
+        sweep_book(live_order, pending.release_time_ns);
+    }
+
+    const std::size_t post_sweep_index = find_live_order_index(pending.order_id);
+    if (post_sweep_index == kInvalidOrderIndex) {
+        return;
+    }
+
+    LiveOrder& resting_order = live_orders_[post_sweep_index];
+    resting_order.active = true;
+    resting_order.volume_ahead = order_book_.get_total_quantity_at_price(resting_order.side, resting_order.price);
+}
+
+void BacktestEngine::sweep_book(LiveOrder& live_order, std::uint64_t timestamp) {
+    if (live_order.remaining_quantity == 0U) {
+        return;
+    }
+
+    if (live_order.side == Side::Buy) {
+        for (auto ask_it = order_book_.asks().begin();
+             ask_it != order_book_.asks().end()
+             && live_order.remaining_quantity > 0U
+             && ask_it->first <= live_order.price;
+             ++ask_it) {
+            std::uint64_t level_quantity = 0U;
+            for (const Order& order : ask_it->second.orders) {
+                level_quantity += order.quantity;
+            }
+
+            if (level_quantity == 0U) {
+                continue;
+            }
+
+            const std::uint64_t fill_quantity = level_quantity < live_order.remaining_quantity
+                ? level_quantity
+                : live_order.remaining_quantity;
+            route_strategy_fill(StrategyFill {
+                .order_id = live_order.order_id,
+                .side = Side::Buy,
+                .price = ask_it->first,
+                .quantity = fill_quantity,
+                .timestamp = timestamp,
+                .liquidity_role = LiquidityRole::Taker,
+            });
+
+            if (find_live_order_index(live_order.order_id) == kInvalidOrderIndex) {
+                return;
+            }
         }
         return;
     }
 
-    if (own_order_it == own_orders_.end()) {
-        return;
+    for (auto bid_it = order_book_.bids().begin();
+         bid_it != order_book_.bids().end()
+         && live_order.remaining_quantity > 0U
+         && bid_it->first >= live_order.price;
+         ++bid_it) {
+        std::uint64_t level_quantity = 0U;
+        for (const Order& order : bid_it->second.orders) {
+            level_quantity += order.quantity;
+        }
+
+        if (level_quantity == 0U) {
+            continue;
+        }
+
+        const std::uint64_t fill_quantity = level_quantity < live_order.remaining_quantity
+            ? level_quantity
+            : live_order.remaining_quantity;
+        route_strategy_fill(StrategyFill {
+            .order_id = live_order.order_id,
+            .side = Side::Sell,
+            .price = bid_it->first,
+            .quantity = fill_quantity,
+            .timestamp = timestamp,
+            .liquidity_role = LiquidityRole::Taker,
+        });
+
+        if (find_live_order_index(live_order.order_id) == kInvalidOrderIndex) {
+            return;
+        }
     }
+}
 
-    if (own_order_it->second.canceled) {
-        own_orders_.erase(own_order_it);
-        return;
+void BacktestEngine::update_passive_queue_on_market_trade(const Order& market_order) {
+    std::uint64_t trade_quantity_remaining = market_order.quantity;
+    std::size_t index = 0U;
+
+    while (index < live_order_count_ && trade_quantity_remaining > 0U) {
+        LiveOrder& live_order = live_orders_[index];
+        const bool can_fill =
+            live_order.active
+            && !live_order.canceled
+            && live_order.side != market_order.side
+            && live_order.price == market_order.price;
+
+        if (!can_fill) {
+            ++index;
+            continue;
+        }
+
+        if (trade_quantity_remaining <= live_order.volume_ahead) {
+            live_order.volume_ahead -= trade_quantity_remaining;
+            break;
+        }
+
+        trade_quantity_remaining -= live_order.volume_ahead;
+        live_order.volume_ahead = 0U;
+
+        const std::uint64_t fill_quantity = live_order.remaining_quantity < trade_quantity_remaining
+            ? live_order.remaining_quantity
+            : trade_quantity_remaining;
+        if (fill_quantity == 0U) {
+            ++index;
+            continue;
+        }
+
+        const std::uint64_t order_id = live_order.order_id;
+        route_strategy_fill(StrategyFill {
+            .order_id = order_id,
+            .side = live_order.side,
+            .price = live_order.price,
+            .quantity = fill_quantity,
+            .timestamp = market_order.timestamp,
+            .liquidity_role = LiquidityRole::Maker,
+        });
+        trade_quantity_remaining -= fill_quantity;
+
+        index = find_live_order_index(order_id) == kInvalidOrderIndex ? 0U : index + 1U;
     }
+}
 
-    own_order_it->second.active = true;
-    order_book_.process_order(Order {
-        .id = pending.order_id,
-        .price = pending.price,
-        .quantity = pending.quantity,
-        .side = pending.side,
-        .timestamp = pending.release_time_ns,
-    }, trade_buffer_);
+void BacktestEngine::apply_pessimistic_volume_update() {
+    for (std::size_t index = 0U; index < live_order_count_; ++index) {
+        LiveOrder& live_order = live_orders_[index];
+        if (!live_order.active || live_order.canceled) {
+            continue;
+        }
 
-    route_trades(trade_buffer_);
+        const std::uint64_t observed_total = order_book_.get_total_quantity_at_price(
+            live_order.side,
+            live_order.price
+        );
+        const std::uint64_t modeled_total = observed_total + live_order.remaining_quantity;
+        const std::uint64_t max_volume_ahead = modeled_total > live_order.remaining_quantity
+            ? modeled_total - live_order.remaining_quantity
+            : 0U;
+        if (live_order.volume_ahead > max_volume_ahead) {
+            live_order.volume_ahead = max_volume_ahead;
+        }
+    }
 }
 
 std::uint64_t BacktestEngine::sample_latency_ns() {
@@ -365,7 +515,47 @@ double BacktestEngine::current_equity() const noexcept {
 }
 
 bool BacktestEngine::is_strategy_order(std::uint64_t order_id) const noexcept {
-    return own_orders_.find(order_id) != own_orders_.end();
+    return find_live_order_index(order_id) != kInvalidOrderIndex;
+}
+
+std::size_t BacktestEngine::find_live_order_index(std::uint64_t order_id) const noexcept {
+    for (std::size_t index = 0U; index < live_order_count_; ++index) {
+        if (live_orders_[index].order_id == order_id) {
+            return index;
+        }
+    }
+
+    return kInvalidOrderIndex;
+}
+
+bool BacktestEngine::is_aggressive(const LiveOrder& live_order) const noexcept {
+    if (live_order.side == Side::Buy) {
+        const double best_ask = order_book_.get_best_ask();
+        return best_ask > 0.0 && live_order.price >= best_ask;
+    }
+
+    const double best_bid = order_book_.get_best_bid();
+    return best_bid > 0.0 && live_order.price <= best_bid;
+}
+
+bool BacktestEngine::add_live_order(const LiveOrder& live_order) noexcept {
+    if (live_order_count_ == kLiveOrderCapacity) {
+        return false;
+    }
+
+    live_orders_[live_order_count_++] = live_order;
+    return true;
+}
+
+void BacktestEngine::erase_live_order(std::size_t index) noexcept {
+    if (index >= live_order_count_) {
+        return;
+    }
+
+    --live_order_count_;
+    if (index != live_order_count_) {
+        live_orders_[index] = live_orders_[live_order_count_];
+    }
 }
 
 }  // namespace lob
