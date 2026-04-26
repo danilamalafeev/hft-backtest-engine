@@ -1034,6 +1034,7 @@ CMakeFiles/lob_backtest.dir/src/main_backtest.cpp.o: \
   /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1/__random/student_t_distribution.h \
   /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1/__random/weibull_distribution.h \
   /Users/danilamalafeev/Documents/New\ project/include/lob/csv_parser.hpp \
+  /Users/danilamalafeev/Documents/New\ project/include/lob/event.hpp \
   /Users/danilamalafeev/Documents/New\ project/include/lob/order.hpp \
   /Users/danilamalafeev/Documents/New\ project/include/lob/order_book.hpp \
   /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1/list \
@@ -1042,4 +1043,24 @@ CMakeFiles/lob_backtest.dir/src/main_backtest.cpp.o: \
   /Users/danilamalafeev/Documents/New\ project/include/lob/price_level.hpp \
   /Users/danilamalafeev/Documents/New\ project/include/lob/trade.hpp \
   /Users/danilamalafeev/Documents/New\ project/include/lob/strategy.hpp \
-  /Users/danilamalafeev/Documents/New\ project/include/lob/inventory_skew_strategy.hpp
+  /Users/danilamalafeev/Documents/New\ project/include/lob/event_merger.hpp \
+  /Users/danilamalafeev/Documents/New\ project/include/lob/order_gateway.hpp \
+  /Users/danilamalafeev/Documents/New\ project/include/lob/oms.hpp \
+  /Users/danilamalafeev/Documents/New\ project/include/lob/async_logger.hpp \
+  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1/condition_variable \
+  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1/__stop_token/stop_callback.h \
+  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1/__stop_token/intrusive_shared_ptr.h \
+  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1/__stop_token/stop_state.h \
+  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1/__stop_token/atomic_unique_lock.h \
+  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1/__stop_token/intrusive_list_view.h \
+  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1/__stop_token/stop_token.h \
+  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1/thread \
+  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1/__thread/formatter.h \
+  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1/__thread/jthread.h \
+  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1/__stop_token/stop_source.h \
+  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1/__thread/thread.h \
+  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1/__thread/this_thread.h \
+  /Users/danilamalafeev/Documents/New\ project/include/lob/inventory_skew_strategy.hpp \
+  /Users/danilamalafeev/Documents/New\ project/include/lob/multi_asset_backtest_engine.hpp \
+  /Users/danilamalafeev/Documents/New\ project/include/lob/wallet.hpp \
+  /Users/danilamalafeev/Documents/New\ project/include/lob/triangular_arbitrage_strategy.hpp

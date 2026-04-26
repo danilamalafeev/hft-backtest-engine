@@ -26,7 +26,7 @@ public:
         l2_asks_.reserve(kL2Depth);
     }
 
-    void on_tick(const OrderBook& book, OrderGateway& gateway) override {
+    void on_tick(AssetID asset_id, const OrderBook& book, OrderGateway& gateway) override {
         const std::uint64_t timestamp = gateway.current_timestamp();
         if (timestamp < next_refresh_timestamp_) {
             return;
@@ -38,7 +38,7 @@ public:
             return;
         }
 
-        cancel_active_quotes(gateway);
+        cancel_active_quotes(asset_id, gateway);
 
         book.get_l2_snapshot(l2_bids_, l2_asks_, kL2Depth);
         double bid_volume = 0.0;
@@ -62,6 +62,7 @@ public:
 
         if (can_increase_long && !massive_sell_pressure) {
             bid_order_id_ = gateway.submit_order(
+                asset_id,
                 Side::Buy,
                 mid_price - half_spread - skew,
                 config_.quote_quantity,
@@ -72,6 +73,7 @@ public:
 
         if (can_increase_short && !massive_buy_pressure) {
             ask_order_id_ = gateway.submit_order(
+                asset_id,
                 Side::Sell,
                 mid_price + half_spread - skew,
                 config_.quote_quantity,
@@ -111,13 +113,13 @@ public:
     }
 
 private:
-    void cancel_active_quotes(OrderGateway& gateway) {
-        if (bid_order_id_ != 0U && gateway.cancel_order(bid_order_id_)) {
+    void cancel_active_quotes(AssetID asset_id, OrderGateway& gateway) {
+        if (bid_order_id_ != 0U && gateway.cancel_order(asset_id, bid_order_id_)) {
             bid_order_id_ = 0U;
             bid_remaining_quantity_ = 0U;
         }
 
-        if (ask_order_id_ != 0U && gateway.cancel_order(ask_order_id_)) {
+        if (ask_order_id_ != 0U && gateway.cancel_order(asset_id, ask_order_id_)) {
             ask_order_id_ = 0U;
             ask_remaining_quantity_ = 0U;
         }

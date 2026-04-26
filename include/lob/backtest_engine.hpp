@@ -69,13 +69,14 @@ public:
     [[nodiscard]] Result run(const std::filesystem::path& file_path);
 
     [[nodiscard]] std::uint64_t submit_order(
+        AssetID asset_id,
         Side side,
         double price,
         std::uint64_t quantity,
         std::uint64_t timestamp
     ) override;
 
-    [[nodiscard]] bool cancel_order(std::uint64_t order_id) override;
+    [[nodiscard]] bool cancel_order(AssetID asset_id, std::uint64_t order_id) override;
     [[nodiscard]] std::uint64_t current_timestamp() const noexcept override;
 
 private:
@@ -86,6 +87,7 @@ private:
 
     struct PendingOrder {
         PendingCommandType type {PendingCommandType::Submit};
+        AssetID asset_id {};
         std::uint64_t release_time_ns {};
         std::uint64_t order_id {};
         Side side {Side::Buy};
@@ -168,6 +170,7 @@ private:
     };
 
     struct LiveOrder {
+        AssetID asset_id {};
         std::uint64_t order_id {};
         Side side {Side::Buy};
         double price {};

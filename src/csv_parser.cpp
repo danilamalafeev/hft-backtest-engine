@@ -1,8 +1,8 @@
 #include "lob/csv_parser.hpp"
 
+#include <cerrno>
 #include <cstddef>
 #include <cstdint>
-#include <cerrno>
 #include <fcntl.h>
 #include <stdexcept>
 #include <string>
@@ -17,67 +17,7 @@ namespace {
 
 constexpr std::uint64_t kQuantityScale = 100'000'000U;
 
-class MappedFile {
-public:
-    explicit MappedFile(const std::filesystem::path& file_path) {
-        file_descriptor_ = ::open(file_path.c_str(), O_RDONLY);
-        if (file_descriptor_ == -1) {
-            throw std::runtime_error("Unable to open CSV file: " + file_path.string());
-        }
-
-        struct stat file_stat {};
-        if (::fstat(file_descriptor_, &file_stat) == -1) {
-            const int saved_errno = errno;
-            ::close(file_descriptor_);
-            file_descriptor_ = -1;
-            throw std::runtime_error("Unable to stat CSV file: " + std::to_string(saved_errno));
-        }
-
-        size_ = static_cast<std::size_t>(file_stat.st_size);
-        if (size_ == 0U) {
-            return;
-        }
-
-        mapping_ = ::mmap(nullptr, size_, PROT_READ, MAP_PRIVATE, file_descriptor_, 0);
-        if (mapping_ == MAP_FAILED) {
-            const int saved_errno = errno;
-            mapping_ = nullptr;
-            ::close(file_descriptor_);
-            file_descriptor_ = -1;
-            throw std::runtime_error("Unable to mmap CSV file: " + std::to_string(saved_errno));
-        }
-    }
-
-    ~MappedFile() {
-        if (mapping_ != nullptr) {
-            ::munmap(mapping_, size_);
-        }
-
-        if (file_descriptor_ != -1) {
-            ::close(file_descriptor_);
-        }
-    }
-
-    MappedFile(const MappedFile&) = delete;
-    MappedFile& operator=(const MappedFile&) = delete;
-    MappedFile(MappedFile&&) = delete;
-    MappedFile& operator=(MappedFile&&) = delete;
-
-    [[nodiscard]] const char* data() const noexcept {
-        return static_cast<const char*>(mapping_);
-    }
-
-    [[nodiscard]] std::size_t size() const noexcept {
-        return size_;
-    }
-
-private:
-    int file_descriptor_ {-1};
-    void* mapping_ {nullptr};
-    std::size_t size_ {0U};
-};
-
-[[nodiscard]] inline bool IsDigit(const char value) noexcept {
+[[nodiscard]] inline bool IsDigit(char value) noexcept {
     return value >= '0' && value <= '9';
 }
 
@@ -87,7 +27,6 @@ private:
         value = (value * 10U) + static_cast<std::uint64_t>(*cursor - '0');
         ++cursor;
     }
-
     return value;
 }
 
@@ -98,19 +37,20 @@ private:
         ++cursor;
     }
 
-    double value = static_cast<double>(integer_part);
+    std::uint64_t fractional_part = 0U;
+    std::uint64_t fractional_scale = 1U;
     if (cursor < end && *cursor == '.') {
         ++cursor;
 
-        double fractional_scale = 0.1;
         while (cursor < end && IsDigit(*cursor)) {
-            value += static_cast<double>(*cursor - '0') * fractional_scale;
-            fractional_scale *= 0.1;
+            fractional_part = (fractional_part * 10U) + static_cast<std::uint64_t>(*cursor - '0');
+            fractional_scale *= 10U;
             ++cursor;
         }
     }
 
-    return value;
+    return static_cast<double>(integer_part) +
+           (static_cast<double>(fractional_part) / static_cast<double>(fractional_scale));
 }
 
 [[nodiscard]] inline std::uint64_t ParseScaledQuantityField(const char*& cursor, const char* end) {
@@ -164,7 +104,6 @@ inline void ExpectComma(const char*& cursor, const char* end) {
     if (cursor >= end || *cursor != ',') {
         throw std::runtime_error("Malformed CSV row: expected comma delimiter");
     }
-
     ++cursor;
 }
 
@@ -196,77 +135,193 @@ inline void SkipEmptyLine(const char*& cursor, const char* end) noexcept {
     }
 }
 
-template <typename Handler>
-std::uint64_t ParseMappedBinanceFile(const std::filesystem::path& file_path, Handler&& handler) {
-    MappedFile mapped_file {file_path};
-    if (mapped_file.size() == 0U) {
-        return 0U;
+}  // namespace
+
+CsvParser::CsvParser(const std::filesystem::path& file_path) {
+    map_file(file_path);
+    parse_next();
+}
+
+CsvParser::~CsvParser() {
+    close_mapping();
+}
+
+CsvParser::CsvParser(CsvParser&& other) noexcept
+    : file_descriptor_(other.file_descriptor_),
+      mapping_(other.mapping_),
+      size_(other.size_),
+      cursor_(other.cursor_),
+      end_(other.end_),
+      next_event_(other.next_event_),
+      has_next_(other.has_next_) {
+    other.file_descriptor_ = -1;
+    other.mapping_ = nullptr;
+    other.size_ = 0U;
+    other.cursor_ = nullptr;
+    other.end_ = nullptr;
+    other.next_event_ = Event {};
+    other.has_next_ = false;
+}
+
+CsvParser& CsvParser::operator=(CsvParser&& other) noexcept {
+    if (this == &other) {
+        return *this;
     }
 
-    const char* cursor = mapped_file.data();
-    const char* const end = cursor + mapped_file.size();
+    close_mapping();
 
-    std::uint64_t parsed_orders = 0U;
+    file_descriptor_ = other.file_descriptor_;
+    mapping_ = other.mapping_;
+    size_ = other.size_;
+    cursor_ = other.cursor_;
+    end_ = other.end_;
+    next_event_ = other.next_event_;
+    has_next_ = other.has_next_;
 
-    while (cursor < end) {
-        if (*cursor == '\n' || *cursor == '\r') {
-            SkipEmptyLine(cursor, end);
+    other.file_descriptor_ = -1;
+    other.mapping_ = nullptr;
+    other.size_ = 0U;
+    other.cursor_ = nullptr;
+    other.end_ = nullptr;
+    other.next_event_ = Event {};
+    other.has_next_ = false;
+    return *this;
+}
+
+Event CsvParser::pop() {
+    if (!has_next_) {
+        throw std::out_of_range("CsvParser::pop called with no remaining events");
+    }
+
+    Event event = next_event_;
+    parse_next();
+    return event;
+}
+
+void CsvParser::map_file(const std::filesystem::path& file_path) {
+    file_descriptor_ = ::open(file_path.c_str(), O_RDONLY);
+    if (file_descriptor_ == -1) {
+        throw std::runtime_error("Unable to open CSV file: " + file_path.string());
+    }
+
+    struct stat file_stat {};
+    if (::fstat(file_descriptor_, &file_stat) == -1) {
+        const int saved_errno = errno;
+        close_mapping();
+        throw std::runtime_error("Unable to stat CSV file: " + std::to_string(saved_errno));
+    }
+
+    size_ = static_cast<std::size_t>(file_stat.st_size);
+    if (size_ == 0U) {
+        cursor_ = nullptr;
+        end_ = nullptr;
+        return;
+    }
+
+    mapping_ = ::mmap(nullptr, size_, PROT_READ, MAP_PRIVATE, file_descriptor_, 0);
+    if (mapping_ == MAP_FAILED) {
+        const int saved_errno = errno;
+        mapping_ = nullptr;
+        close_mapping();
+        throw std::runtime_error("Unable to mmap CSV file: " + std::to_string(saved_errno));
+    }
+
+    cursor_ = static_cast<const char*>(mapping_);
+    end_ = cursor_ + size_;
+    (void)::madvise(mapping_, size_, MADV_SEQUENTIAL);
+}
+
+void CsvParser::close_mapping() noexcept {
+    if (mapping_ != nullptr) {
+        ::munmap(mapping_, size_);
+        mapping_ = nullptr;
+    }
+
+    if (file_descriptor_ != -1) {
+        ::close(file_descriptor_);
+        file_descriptor_ = -1;
+    }
+
+    size_ = 0U;
+    cursor_ = nullptr;
+    end_ = nullptr;
+    has_next_ = false;
+}
+
+void CsvParser::parse_next() {
+    has_next_ = false;
+
+    while (cursor_ != nullptr && cursor_ < end_) {
+        if (*cursor_ == '\n' || *cursor_ == '\r') {
+            SkipEmptyLine(cursor_, end_);
             continue;
         }
 
         Order order {};
-        order.id = ParseUnsignedField(cursor, end);
-        ExpectComma(cursor, end);
-        order.price = ParseDoubleField(cursor, end);
-        ExpectComma(cursor, end);
-        order.quantity = ParseScaledQuantityField(cursor, end);
-        ExpectComma(cursor, end);
-        SkipField(cursor, end);
-        ExpectComma(cursor, end);
-        order.timestamp = ParseUnsignedField(cursor, end);
-        ExpectComma(cursor, end);
-        order.side = ParseIncomingSideField(cursor, end);
-        ExpectComma(cursor, end);
-        SkipField(cursor, end);
-        ConsumeRecordEnd(cursor, end);
+        order.id = ParseUnsignedField(cursor_, end_);
+        ExpectComma(cursor_, end_);
+        order.price = ParseDoubleField(cursor_, end_);
+        ExpectComma(cursor_, end_);
+        order.quantity = ParseScaledQuantityField(cursor_, end_);
+        ExpectComma(cursor_, end_);
+        SkipField(cursor_, end_);
+        ExpectComma(cursor_, end_);
+        order.timestamp = ParseUnsignedField(cursor_, end_);
+        ExpectComma(cursor_, end_);
+        order.side = ParseIncomingSideField(cursor_, end_);
+        ExpectComma(cursor_, end_);
+        SkipField(cursor_, end_);
+        ConsumeRecordEnd(cursor_, end_);
 
-        handler(order);
-        ++parsed_orders;
+        next_event_ = Event {
+            .timestamp = order.timestamp,
+            .order = order,
+        };
+        has_next_ = true;
+        return;
     }
-
-    return parsed_orders;
 }
-
-}  // namespace
 
 std::uint64_t CsvParser::parse_file(const std::filesystem::path& file_path, const OrderHandler& handler) const {
     if (!handler) {
         throw std::invalid_argument("CSV parser requires a valid order handler");
     }
 
-    return ParseMappedBinanceFile(file_path, [&handler](const Order& order) {
-        handler(order);
-    });
+    CsvParser parser {file_path};
+    std::uint64_t parsed_orders = 0U;
+    while (parser.has_next()) {
+        handler(parser.pop().order);
+        ++parsed_orders;
+    }
+
+    return parsed_orders;
 }
 
 std::uint64_t CsvParser::process_file(const std::filesystem::path& file_path, OrderBook& order_book) const {
-    return ParseMappedBinanceFile(file_path, [&order_book](const Order& order) {
-        const auto trades = order_book.process_order(order);
+    CsvParser parser {file_path};
+    std::uint64_t processed_orders = 0U;
+    while (parser.has_next()) {
+        const auto trades = order_book.process_order(parser.pop().order);
         (void)trades;
-    });
+        ++processed_orders;
+    }
+    return processed_orders;
 }
 
 CsvParser::ReplayStats CsvParser::replay_file(const std::filesystem::path& file_path, OrderBook& order_book) const {
     ReplayStats replay_stats {};
+    CsvParser parser {file_path};
 
-    replay_stats.orders_processed = ParseMappedBinanceFile(file_path, [&order_book, &replay_stats](const Order& order) {
+    while (parser.has_next()) {
+        const Order order = parser.pop().order;
         if (replay_stats.first_timestamp == 0U) {
             replay_stats.first_timestamp = order.timestamp;
         }
 
         replay_stats.last_timestamp = order.timestamp;
+        ++replay_stats.orders_processed;
         replay_stats.generated_trades += static_cast<std::uint64_t>(order_book.process_order(order).size());
-    });
+    }
 
     return replay_stats;
 }

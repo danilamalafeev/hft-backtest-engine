@@ -1,17 +1,23 @@
 #include <chrono>
+#include <array>
 #include <cstdint>
 #include <ctime>
 #include <filesystem>
 #include <iomanip>
 #include <iostream>
+#include <memory>
+#include <optional>
 #include <sstream>
 #include <stdexcept>
 #include <string>
 #include <vector>
 
 #include "lob/analytics.hpp"
+#include "lob/async_logger.hpp"
 #include "lob/backtest_engine.hpp"
 #include "lob/inventory_skew_strategy.hpp"
+#include "lob/multi_asset_backtest_engine.hpp"
+#include "lob/triangular_arbitrage_strategy.hpp"
 
 namespace {
 
@@ -75,8 +81,27 @@ struct RuntimeOptions {
     double maker_fee_bps {};
     double taker_fee_bps {};
     lob::BacktestEngine::LatencyConfig latency {};
+    std::string async_log_path {};
     bool trace_enabled {};
 };
+
+[[nodiscard]] lob::MultiAssetBacktestEngine<3U>::LatencyDistribution ConvertMultiAssetLatencyDistribution(
+    lob::BacktestEngine::LatencyDistribution distribution
+) {
+    using SingleDistribution = lob::BacktestEngine::LatencyDistribution;
+    using MultiDistribution = lob::MultiAssetBacktestEngine<3U>::LatencyDistribution;
+
+    switch (distribution) {
+        case SingleDistribution::None:
+            return MultiDistribution::None;
+        case SingleDistribution::Exponential:
+            return MultiDistribution::Exponential;
+        case SingleDistribution::LogNormal:
+            return MultiDistribution::LogNormal;
+    }
+
+    return MultiDistribution::None;
+}
 
 int RunBacktest(
     const std::filesystem::path& csv_path,
@@ -177,24 +202,138 @@ int RunBacktest(
     return 0;
 }
 
+int RunTriangularBacktest(
+    const std::array<std::filesystem::path, 3U>& csv_paths,
+    const RuntimeOptions& runtime_options
+) {
+    using Engine = lob::MultiAssetBacktestEngine<3U>;
+
+    lob::TriangularArbitrageStrategy strategy {lob::TriangularArbitrageStrategy::Config {
+        .taker_fee_bps = runtime_options.taker_fee_bps,
+    }};
+    std::unique_ptr<lob::AsyncLogger<>> async_logger {};
+    if (!runtime_options.async_log_path.empty()) {
+        async_logger = std::make_unique<lob::AsyncLogger<>>(runtime_options.async_log_path);
+    }
+
+    Engine engine {strategy, Engine::PathArray {
+        csv_paths[0],
+        csv_paths[1],
+        csv_paths[2],
+    }, Engine::Config {
+        .initial_cash = 100'000'000.0,
+        .maker_fee_bps = runtime_options.maker_fee_bps,
+        .taker_fee_bps = runtime_options.taker_fee_bps,
+        .latency = Engine::LatencyConfig {
+            .base_latency_ns = runtime_options.latency.base_latency_ns,
+            .distribution = ConvertMultiAssetLatencyDistribution(runtime_options.latency.distribution),
+            .jitter_mean_ns = runtime_options.latency.jitter_mean_ns,
+            .lognormal_mu = runtime_options.latency.lognormal_mu,
+            .lognormal_sigma = runtime_options.latency.lognormal_sigma,
+            .rng_seed = runtime_options.latency.rng_seed,
+        },
+        .async_logger = async_logger.get(),
+    }};
+
+    const auto wall_start = std::chrono::steady_clock::now();
+    const std::clock_t cpu_start = std::clock();
+    const Engine::Result result = engine.run();
+    const std::clock_t cpu_end = std::clock();
+    const auto wall_end = std::chrono::steady_clock::now();
+
+    const double cpu_seconds = static_cast<double>(cpu_end - cpu_start) / static_cast<double>(CLOCKS_PER_SEC);
+    const std::chrono::duration<double> wall_seconds = wall_end - wall_start;
+    const double events_per_second = cpu_seconds > 0.0
+        ? static_cast<double>(result.events_processed) / cpu_seconds
+        : 0.0;
+    const double traded_notional = result.execution.maker_notional + result.execution.taker_notional;
+    const double turnover = result.initial_usdt > 0.0 ? traded_notional / result.initial_usdt : 0.0;
+
+    std::cout << "Mode: Triangular Arbitrage\n";
+    std::cout << "Assets: 0=BTCUSDT, 1=ETHUSDT, 2=ETHBTC\n";
+    std::cout << "Total Events Processed: " << result.events_processed << '\n';
+    std::cout << "Actual CPU Time Taken: " << std::fixed << std::setprecision(6) << cpu_seconds << " seconds\n";
+    std::cout << "Wall Clock Time Taken: " << std::fixed << std::setprecision(6) << wall_seconds.count() << " seconds\n";
+    std::cout << "EPS: " << std::fixed << std::setprecision(2) << events_per_second << '\n';
+    std::cout << '\n';
+    std::cout << "=== Multi-Asset Execution Analytics ===\n";
+    std::cout << "Initial USDT: " << std::fixed << std::setprecision(2) << result.initial_usdt << '\n';
+    std::cout << "Final USDT Liquid: " << std::fixed << std::setprecision(2) << result.final_portfolio.usdt << '\n';
+    std::cout << "Final BTC Balance: " << std::fixed << std::setprecision(8) << result.final_portfolio.btc << '\n';
+    std::cout << "Final ETH Balance: " << std::fixed << std::setprecision(8) << result.final_portfolio.eth << '\n';
+    std::cout << "Final BTCUSDT Mid: " << std::fixed << std::setprecision(2) << result.btc_usdt_mid << '\n';
+    std::cout << "Final ETHUSDT Mid: " << std::fixed << std::setprecision(2) << result.eth_usdt_mid << '\n';
+    std::cout << "Total MTM NAV USDT: " << std::fixed << std::setprecision(2) << result.final_mtm_nav_usdt << '\n';
+    std::cout << "MTM PnL USDT: " << std::fixed << std::setprecision(2)
+              << (result.final_mtm_nav_usdt - result.initial_usdt) << '\n';
+    std::cout << "Inventory Risk USDT: " << std::fixed << std::setprecision(2)
+              << result.inventory_risk_usdt << '\n';
+    std::cout << "Maker Fills: " << result.execution.maker_fills_count << '\n';
+    std::cout << "Taker Fills: " << result.execution.taker_fills_count << '\n';
+    std::cout << "Maker Notional USDT: " << std::fixed << std::setprecision(2)
+              << result.execution.maker_notional << '\n';
+    std::cout << "Taker Notional USDT: " << std::fixed << std::setprecision(2)
+              << result.execution.taker_notional << '\n';
+    std::cout << "Turnover: " << std::fixed << std::setprecision(8) << turnover << '\n';
+    std::cout << "Dropped Pending Orders: " << result.dropped_pending_orders << '\n';
+    if (async_logger != nullptr) {
+        std::cout << "Async Log: " << runtime_options.async_log_path
+                  << " (dropped_records=" << async_logger->dropped() << ")\n";
+    }
+    for (std::size_t asset_id = 0U; asset_id < result.per_asset_stats.size(); ++asset_id) {
+        const auto& stats = result.per_asset_stats[asset_id];
+        const double avg_slippage = stats.volume_traded > 0.0
+            ? stats.slippage_realized / stats.volume_traded
+            : 0.0;
+        std::cout << "RESULT_ASSETS_CSV,"
+                  << asset_id << ','
+                  << std::fixed << std::setprecision(6)
+                  << stats.volume_traded << ','
+                  << stats.total_pnl << ','
+                  << avg_slippage << '\n';
+    }
+    std::cout << "RESULT_TRI_CSV,"
+              << std::fixed << std::setprecision(6)
+              << result.events_processed << ','
+              << result.final_portfolio.usdt << ','
+              << result.final_portfolio.btc << ','
+              << result.final_portfolio.eth << ','
+              << result.final_mtm_nav_usdt << ','
+              << (result.final_mtm_nav_usdt - result.initial_usdt) << ','
+              << result.inventory_risk_usdt << ','
+              << result.execution.maker_fills_count << ','
+              << result.execution.taker_fills_count << ','
+              << result.execution.maker_notional << ','
+              << result.execution.taker_notional << ','
+              << turnover << ','
+              << result.dropped_pending_orders << '\n';
+
+    return 0;
+}
+
 }  // namespace
 
 int main(int argc, char* argv[]) {
     try {
         if (argc < 2) {
-            std::cerr << "Usage: lob_backtest <binance_trades.csv> [base_spread gamma imbalance_threshold] [--trace]"
+            std::cerr << "Usage:\n"
+                      << "  lob_backtest <binance_trades.csv> [base_spread gamma imbalance_threshold] [--trace]"
                       << " [--maker-fee-bps x] [--taker-fee-bps x] [--base-latency-ns n]"
                       << " [--latency-dist none|exponential|lognormal] [--jitter-mean-ns n]"
-                      << " [--lognormal-mu x] [--lognormal-sigma x] [--latency-seed n]" << '\n';
+                      << " [--lognormal-mu x] [--lognormal-sigma x] [--latency-seed n]\n"
+                      << "  lob_backtest <BTCUSDT.csv> <ETHUSDT.csv> <ETHBTC.csv>"
+                      << " [--maker-fee-bps x] [--taker-fee-bps x] [--base-latency-ns n]"
+                      << " [--latency-dist none|exponential|lognormal] [--jitter-mean-ns n]"
+                      << " [--lognormal-mu x] [--lognormal-sigma x] [--latency-seed n]"
+                      << " [--async-log path]" << '\n';
             return 1;
         }
 
         RuntimeOptions runtime_options {};
         std::vector<const char*> positional_args {};
         positional_args.reserve(4U);
-        positional_args.push_back(argv[1]);
 
-        for (int index = 2; index < argc; ++index) {
+        for (int index = 1; index < argc; ++index) {
             const std::string argument {argv[index]};
             if (argument == "--trace") {
                 runtime_options.trace_enabled = true;
@@ -214,16 +353,24 @@ int main(int argc, char* argv[]) {
                 runtime_options.latency.lognormal_sigma = ParseDoubleArg(argv[++index], "lognormal_sigma");
             } else if (argument == "--latency-seed" && index + 1 < argc) {
                 runtime_options.latency.rng_seed = ParseUint64Arg(argv[++index], "latency_seed");
+            } else if (argument == "--async-log" && index + 1 < argc) {
+                runtime_options.async_log_path = argv[++index];
             } else {
                 positional_args.push_back(argv[index]);
             }
         }
 
-        if (positional_args.size() != 1U && positional_args.size() != 4U) {
-            std::cerr << "Usage: lob_backtest <binance_trades.csv> [base_spread gamma imbalance_threshold] [--trace]"
+        if (positional_args.size() != 1U && positional_args.size() != 3U && positional_args.size() != 4U) {
+            std::cerr << "Usage:\n"
+                      << "  lob_backtest <binance_trades.csv> [base_spread gamma imbalance_threshold] [--trace]"
                       << " [--maker-fee-bps x] [--taker-fee-bps x] [--base-latency-ns n]"
                       << " [--latency-dist none|exponential|lognormal] [--jitter-mean-ns n]"
-                      << " [--lognormal-mu x] [--lognormal-sigma x] [--latency-seed n]" << '\n';
+                      << " [--lognormal-mu x] [--lognormal-sigma x] [--latency-seed n]\n"
+                      << "  lob_backtest <BTCUSDT.csv> <ETHUSDT.csv> <ETHBTC.csv>"
+                      << " [--maker-fee-bps x] [--taker-fee-bps x] [--base-latency-ns n]"
+                      << " [--latency-dist none|exponential|lognormal] [--jitter-mean-ns n]"
+                      << " [--lognormal-mu x] [--lognormal-sigma x] [--latency-seed n]"
+                      << " [--async-log path]" << '\n';
             return 1;
         }
 
@@ -245,7 +392,18 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        return RunBacktest(argv[1], base_spread, gamma, imbalance_threshold, runtime_options);
+        if (positional_args.size() == 3U) {
+            return RunTriangularBacktest(
+                std::array<std::filesystem::path, 3U> {
+                    positional_args[0],
+                    positional_args[1],
+                    positional_args[2],
+                },
+                runtime_options
+            );
+        }
+
+        return RunBacktest(positional_args[0], base_spread, gamma, imbalance_threshold, runtime_options);
     } catch (const std::exception& exception) {
         std::cerr << "Backtest failed: " << exception.what() << '\n';
         return 1;

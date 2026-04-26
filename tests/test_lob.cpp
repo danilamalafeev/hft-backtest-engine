@@ -1,11 +1,67 @@
 #include <gtest/gtest.h>
 
+#include <array>
+#include <cstddef>
+#include <cstdint>
+#include <filesystem>
+#include <fstream>
 #include <vector>
 
 #include "lob/analytics.hpp"
+#include "lob/csv_parser.hpp"
+#include "lob/event_merger.hpp"
+#include "lob/multi_asset_backtest_engine.hpp"
 #include "lob/order_book.hpp"
 
 namespace {
+
+template <std::size_t Capacity>
+class FakeStreamParser {
+public:
+    FakeStreamParser() = default;
+
+    explicit FakeStreamParser(std::array<std::uint64_t, Capacity> timestamps, std::size_t size)
+        : timestamps_(timestamps),
+          size_(size) {}
+
+    [[nodiscard]] bool has_next() const noexcept {
+        return index_ < size_;
+    }
+
+    [[nodiscard]] std::uint64_t peek_time() const noexcept {
+        return timestamps_[index_];
+    }
+
+    [[nodiscard]] lob::Event pop() noexcept {
+        const std::uint64_t timestamp = timestamps_[index_++];
+        return lob::Event {
+            .timestamp = timestamp,
+            .order = lob::Order {
+                .id = timestamp,
+                .price = 100.0,
+                .quantity = 0U,
+                .side = lob::Side::Buy,
+                .timestamp = timestamp,
+            },
+        };
+    }
+
+private:
+    std::array<std::uint64_t, Capacity> timestamps_ {};
+    std::size_t size_ {};
+    std::size_t index_ {};
+};
+
+class CountingStrategy final : public lob::Strategy {
+public:
+    void on_tick(lob::AssetID asset_id, const lob::OrderBook& book, lob::OrderGateway& gateway) override {
+        (void)book;
+        (void)gateway;
+        ++ticks_by_asset_[asset_id];
+    }
+
+    std::array<std::uint64_t, 2U> ticks_by_asset_ {};
+};
 
 TEST(OrderBookTest, InitializesSuccessfully) {
     const lob::OrderBook order_book {};
@@ -249,6 +305,89 @@ TEST(AnalyticsTest, ComputesPnlAndDrawdownFromEquityCurve) {
     EXPECT_DOUBLE_EQ(analytics.max_drawdown, 5.0);
     EXPECT_DOUBLE_EQ(analytics.max_drawdown_pct, 5.0 / 110.0);
     EXPECT_GT(analytics.sharpe_ratio, 0.0);
+}
+
+TEST(CsvParserTest, StreamsMmapEventsWithOneEventLookahead) {
+    const std::filesystem::path csv_path = std::filesystem::temp_directory_path() / "lob_streaming_parser_test.csv";
+    {
+        std::ofstream csv {csv_path};
+        csv << "1,100.00,0.01000000,1.00000000,1709251200000,false,true\n"
+            << "2,101.25,0.02000000,2.02500000,1709251200100,true,true\n";
+    }
+
+    lob::CsvParser parser {csv_path};
+
+    ASSERT_TRUE(parser.has_next());
+    EXPECT_EQ(parser.peek_time(), 1'709'251'200'000ULL);
+
+    const lob::Event first_event = parser.pop();
+    EXPECT_EQ(first_event.timestamp, 1'709'251'200'000ULL);
+    EXPECT_EQ(first_event.order.id, 1U);
+    EXPECT_EQ(first_event.order.side, lob::Side::Buy);
+    EXPECT_EQ(first_event.order.quantity, 1'000'000U);
+
+    ASSERT_TRUE(parser.has_next());
+    EXPECT_EQ(parser.peek_time(), 1'709'251'200'100ULL);
+
+    const lob::Event second_event = parser.pop();
+    EXPECT_EQ(second_event.order.id, 2U);
+    EXPECT_EQ(second_event.order.side, lob::Side::Sell);
+    EXPECT_EQ(second_event.order.quantity, 2'000'000U);
+    EXPECT_FALSE(parser.has_next());
+
+    std::filesystem::remove(csv_path);
+}
+
+TEST(EventMergerTest, MergesSmallStreamSetWithFastPath) {
+    using Parser = FakeStreamParser<3U>;
+    lob::EventMerger<3U, Parser> merger {std::array<Parser, 3U> {
+        Parser {{1U, 4U, 7U}, 3U},
+        Parser {{2U, 5U, 8U}, 3U},
+        Parser {{3U, 6U, 9U}, 3U},
+    }};
+
+    for (std::uint64_t expected_timestamp = 1U; expected_timestamp <= 9U; ++expected_timestamp) {
+        ASSERT_TRUE(merger.has_next());
+        const lob::Event event = merger.get_next();
+        EXPECT_EQ(event.timestamp, expected_timestamp);
+        EXPECT_EQ(event.asset_id, static_cast<lob::AssetID>((expected_timestamp - 1U) % 3U));
+    }
+
+    EXPECT_FALSE(merger.has_next());
+}
+
+TEST(EventMergerTest, MergesLargeStreamSetWithHeapPath) {
+    using Parser = FakeStreamParser<2U>;
+    lob::EventMerger<5U, Parser> merger {std::array<Parser, 5U> {
+        Parser {{5U, 10U}, 2U},
+        Parser {{1U, 6U}, 2U},
+        Parser {{3U, 8U}, 2U},
+        Parser {{2U, 7U}, 2U},
+        Parser {{4U, 9U}, 2U},
+    }};
+
+    for (std::uint64_t expected_timestamp = 1U; expected_timestamp <= 10U; ++expected_timestamp) {
+        ASSERT_TRUE(merger.has_next());
+        const lob::Event event = merger.get_next();
+        EXPECT_EQ(event.timestamp, expected_timestamp);
+    }
+
+    EXPECT_FALSE(merger.has_next());
+}
+
+TEST(MultiAssetBacktestEngineTest, RoutesMergedEventsToAssetBooksAndStrategy) {
+    using Parser = FakeStreamParser<2U>;
+    CountingStrategy strategy {};
+    lob::MultiAssetBacktestEngine<2U, Parser> engine {strategy, std::array<Parser, 2U> {
+        Parser {{1U, 3U}, 2U},
+        Parser {{2U, 4U}, 2U},
+    }};
+
+    const auto result = engine.run();
+
+    EXPECT_EQ(result.events_processed, 4U);
+    EXPECT_EQ(strategy.ticks_by_asset_[0], 2U);
+    EXPECT_EQ(strategy.ticks_by_asset_[1], 2U);
 }
 
 }  // namespace

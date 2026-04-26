@@ -72,7 +72,7 @@ BacktestEngine::Result BacktestEngine::run(const std::filesystem::path& file_pat
 
         update_snapshot(current_time_ns_, order.price);
         route_trades(trade_buffer_);
-        strategy_.on_tick(order_book_, *this);
+        strategy_.on_tick(0U, order_book_, *this);
         result.replay_stats.generated_trades += release_pending_orders(current_time_ns_);
         sample_equity(current_time_ns_);
     });
@@ -93,6 +93,7 @@ BacktestEngine::Result BacktestEngine::run(const std::filesystem::path& file_pat
 }
 
 std::uint64_t BacktestEngine::submit_order(
+    AssetID asset_id,
     Side side,
     double price,
     std::uint64_t quantity,
@@ -105,6 +106,7 @@ std::uint64_t BacktestEngine::submit_order(
 
     const std::uint64_t release_time_ns = current_time_ns_ + sample_latency_ns();
     if (!add_live_order(LiveOrder {
+        .asset_id = asset_id,
         .order_id = order_id,
         .side = side,
         .price = price,
@@ -119,6 +121,7 @@ std::uint64_t BacktestEngine::submit_order(
 
     if (!pending_orders_.push(PendingOrder {
         .type = PendingCommandType::Submit,
+        .asset_id = asset_id,
         .release_time_ns = release_time_ns,
         .order_id = order_id,
         .side = side,
@@ -133,10 +136,11 @@ std::uint64_t BacktestEngine::submit_order(
     return order_id;
 }
 
-bool BacktestEngine::cancel_order(std::uint64_t order_id) {
+bool BacktestEngine::cancel_order(AssetID asset_id, std::uint64_t order_id) {
     const std::uint64_t release_time_ns = current_time_ns_ + sample_latency_ns();
     if (!pending_orders_.push(PendingOrder {
         .type = PendingCommandType::Cancel,
+        .asset_id = asset_id,
         .release_time_ns = release_time_ns,
         .order_id = order_id,
     })) {
@@ -170,6 +174,7 @@ void BacktestEngine::route_trades(const std::vector<Trade>& trades) {
 
         if (own_buy) {
             pending_fills_.push_back(StrategyFill {
+                .asset_id = 0U,
                 .order_id = trade.buyer_id,
                 .side = Side::Buy,
                 .price = trade.price,
@@ -181,6 +186,7 @@ void BacktestEngine::route_trades(const std::vector<Trade>& trades) {
 
         if (own_sell) {
             pending_fills_.push_back(StrategyFill {
+                .asset_id = 0U,
                 .order_id = trade.seller_id,
                 .side = Side::Sell,
                 .price = trade.price,
@@ -325,6 +331,7 @@ void BacktestEngine::sweep_book(LiveOrder& live_order, std::uint64_t timestamp) 
                 ? level_quantity
                 : live_order.remaining_quantity;
             route_strategy_fill(StrategyFill {
+                .asset_id = live_order.asset_id,
                 .order_id = live_order.order_id,
                 .side = Side::Buy,
                 .price = ask_it->first,
@@ -358,6 +365,7 @@ void BacktestEngine::sweep_book(LiveOrder& live_order, std::uint64_t timestamp) 
             ? level_quantity
             : live_order.remaining_quantity;
         route_strategy_fill(StrategyFill {
+            .asset_id = live_order.asset_id,
             .order_id = live_order.order_id,
             .side = Side::Sell,
             .price = bid_it->first,
@@ -407,6 +415,7 @@ void BacktestEngine::update_passive_queue_on_market_trade(const Order& market_or
 
         const std::uint64_t order_id = live_order.order_id;
         route_strategy_fill(StrategyFill {
+            .asset_id = live_order.asset_id,
             .order_id = order_id,
             .side = live_order.side,
             .price = live_order.price,

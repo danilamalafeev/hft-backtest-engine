@@ -1004,6 +1004,7 @@ CMakeFiles/lob_core.dir/src/backtest_engine.cpp.o: \
   /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1/__random/student_t_distribution.h \
   /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1/__random/weibull_distribution.h \
   /Users/danilamalafeev/Documents/New\ project/include/lob/csv_parser.hpp \
+  /Users/danilamalafeev/Documents/New\ project/include/lob/event.hpp \
   /Users/danilamalafeev/Documents/New\ project/include/lob/order.hpp \
   /Users/danilamalafeev/Documents/New\ project/include/lob/order_book.hpp \
   /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1/list \
@@ -1011,4 +1012,7 @@ CMakeFiles/lob_core.dir/src/backtest_engine.cpp.o: \
   /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1/__tree \
   /Users/danilamalafeev/Documents/New\ project/include/lob/price_level.hpp \
   /Users/danilamalafeev/Documents/New\ project/include/lob/trade.hpp \
-  /Users/danilamalafeev/Documents/New\ project/include/lob/strategy.hpp
+  /Users/danilamalafeev/Documents/New\ project/include/lob/strategy.hpp \
+  /Users/danilamalafeev/Documents/New\ project/include/lob/event_merger.hpp \
+  /Users/danilamalafeev/Documents/New\ project/include/lob/order_gateway.hpp \
+  /Users/danilamalafeev/Documents/New\ project/include/lob/oms.hpp

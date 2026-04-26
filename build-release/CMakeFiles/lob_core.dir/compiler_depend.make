@@ -1009,8 +1009,12 @@ CMakeFiles/lob_core.dir/src/backtest_engine.cpp.o: /Users/danilamalafeev/Documen
   /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/17/include/stdint.h \
   /Users/danilamalafeev/Documents/New\ project/include/lob/backtest_engine.hpp \
   /Users/danilamalafeev/Documents/New\ project/include/lob/csv_parser.hpp \
+  /Users/danilamalafeev/Documents/New\ project/include/lob/event.hpp \
+  /Users/danilamalafeev/Documents/New\ project/include/lob/event_merger.hpp \
+  /Users/danilamalafeev/Documents/New\ project/include/lob/oms.hpp \
   /Users/danilamalafeev/Documents/New\ project/include/lob/order.hpp \
   /Users/danilamalafeev/Documents/New\ project/include/lob/order_book.hpp \
+  /Users/danilamalafeev/Documents/New\ project/include/lob/order_gateway.hpp \
   /Users/danilamalafeev/Documents/New\ project/include/lob/price_level.hpp \
   /Users/danilamalafeev/Documents/New\ project/include/lob/strategy.hpp \
   /Users/danilamalafeev/Documents/New\ project/include/lob/trade.hpp
@@ -1983,6 +1987,7 @@ CMakeFiles/lob_core.dir/src/csv_parser.cpp.o: /Users/danilamalafeev/Documents/Ne
   /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/17/include/stddef.h \
   /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/17/include/stdint.h \
   /Users/danilamalafeev/Documents/New\ project/include/lob/csv_parser.hpp \
+  /Users/danilamalafeev/Documents/New\ project/include/lob/event.hpp \
   /Users/danilamalafeev/Documents/New\ project/include/lob/order.hpp \
   /Users/danilamalafeev/Documents/New\ project/include/lob/order_book.hpp \
   /Users/danilamalafeev/Documents/New\ project/include/lob/price_level.hpp \
@@ -2913,6 +2918,12 @@ CMakeFiles/lob_core.dir/src/order_book.cpp.o: /Users/danilamalafeev/Documents/Ne
 /Users/danilamalafeev/Documents/New\ project/include/lob/trade.hpp:
 
 /Users/danilamalafeev/Documents/New\ project/include/lob/price_level.hpp:
+
+/Users/danilamalafeev/Documents/New\ project/include/lob/order_gateway.hpp:
+
+/Users/danilamalafeev/Documents/New\ project/include/lob/oms.hpp:
+
+/Users/danilamalafeev/Documents/New\ project/include/lob/event_merger.hpp:
 
 /Users/danilamalafeev/Documents/New\ project/include/lob/csv_parser.hpp:
 
@@ -4405,6 +4416,8 @@ CMakeFiles/lob_core.dir/src/order_book.cpp.o: /Users/danilamalafeev/Documents/Ne
 /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1/__algorithm/remove.h:
 
 /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1/__iterator/istreambuf_iterator.h:
+
+/Users/danilamalafeev/Documents/New\ project/include/lob/event.hpp:
 
 /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1/__algorithm/ranges_pop_heap.h:
 

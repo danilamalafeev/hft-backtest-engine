@@ -18,7 +18,7 @@ public:
     MarketMakerStrategy() : MarketMakerStrategy(Config {}) {}
     explicit MarketMakerStrategy(Config config) : config_(config) {}
 
-    void on_tick(const OrderBook& book, OrderGateway& gateway) override {
+    void on_tick(AssetID asset_id, const OrderBook& book, OrderGateway& gateway) override {
         const double best_bid = book.get_best_bid();
         const double best_ask = book.get_best_ask();
         const std::uint64_t timestamp = gateway.current_timestamp();
@@ -26,10 +26,11 @@ public:
             return;
         }
 
-        cancel_active_quotes(gateway);
+        cancel_active_quotes(asset_id, gateway);
 
         const double mid_price = (best_bid + best_ask) * 0.5;
         bid_order_id_ = gateway.submit_order(
+            asset_id,
             Side::Buy,
             mid_price - config_.quote_offset,
             config_.quote_quantity,
@@ -38,6 +39,7 @@ public:
         bid_remaining_quantity_ = config_.quote_quantity;
 
         ask_order_id_ = gateway.submit_order(
+            asset_id,
             Side::Sell,
             mid_price + config_.quote_offset,
             config_.quote_quantity,
@@ -69,13 +71,13 @@ public:
     }
 
 private:
-    void cancel_active_quotes(OrderGateway& gateway) {
-        if (bid_order_id_ != 0U && gateway.cancel_order(bid_order_id_)) {
+    void cancel_active_quotes(AssetID asset_id, OrderGateway& gateway) {
+        if (bid_order_id_ != 0U && gateway.cancel_order(asset_id, bid_order_id_)) {
             bid_order_id_ = 0U;
             bid_remaining_quantity_ = 0U;
         }
 
-        if (ask_order_id_ != 0U && gateway.cancel_order(ask_order_id_)) {
+        if (ask_order_id_ != 0U && gateway.cancel_order(asset_id, ask_order_id_)) {
             ask_order_id_ = 0U;
             ask_remaining_quantity_ = 0U;
         }

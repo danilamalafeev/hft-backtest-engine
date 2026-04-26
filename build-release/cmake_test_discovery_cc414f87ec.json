@@ -1,5 +1,5 @@
 {
-  "tests": 9,
+  "tests": 13,
   "name": "AllTests",
   "testsuites": [
     {
@@ -9,42 +9,42 @@
         {
           "name": "InitializesSuccessfully",
           "file": "\/Users\/danilamalafeev\/Documents\/New project\/tests\/test_lob.cpp",
-          "line": 10
+          "line": 66
         },
         {
           "name": "ProcessOrderRestsBuyOrderWhenBookDoesNotCross",
           "file": "\/Users\/danilamalafeev\/Documents\/New project\/tests\/test_lob.cpp",
-          "line": 17
+          "line": 73
         },
         {
           "name": "ProcessOrderRestsSellOrderWhenBookDoesNotCross",
           "file": "\/Users\/danilamalafeev\/Documents\/New project\/tests\/test_lob.cpp",
-          "line": 41
+          "line": 97
         },
         {
           "name": "ProcessOrderMatchesCrossSpreadUsingPriceTimePriority",
           "file": "\/Users\/danilamalafeev\/Documents\/New project\/tests\/test_lob.cpp",
-          "line": 65
+          "line": 121
         },
         {
           "name": "ProcessOrderRestsResidualQuantityAfterPartialIncomingFill",
           "file": "\/Users\/danilamalafeev\/Documents\/New project\/tests\/test_lob.cpp",
-          "line": 133
+          "line": 189
         },
         {
           "name": "CancelOrderRemovesEmptyBidPriceLevelAndIndexEntry",
           "file": "\/Users\/danilamalafeev\/Documents\/New project\/tests\/test_lob.cpp",
-          "line": 166
+          "line": 222
         },
         {
           "name": "CancelOrderReturnsFalseForUnknownId",
           "file": "\/Users\/danilamalafeev\/Documents\/New project\/tests\/test_lob.cpp",
-          "line": 196
+          "line": 252
         },
         {
           "name": "ExposesBestPricesAndL2Snapshot",
           "file": "\/Users\/danilamalafeev\/Documents\/New project\/tests\/test_lob.cpp",
-          "line": 201
+          "line": 257
         }
       ]
     },
@@ -55,7 +55,45 @@
         {
           "name": "ComputesPnlAndDrawdownFromEquityCurve",
           "file": "\/Users\/danilamalafeev\/Documents\/New project\/tests\/test_lob.cpp",
-          "line": 243
+          "line": 299
+        }
+      ]
+    },
+    {
+      "name": "CsvParserTest",
+      "tests": 1,
+      "testsuite": [
+        {
+          "name": "StreamsMmapEventsWithOneEventLookahead",
+          "file": "\/Users\/danilamalafeev\/Documents\/New project\/tests\/test_lob.cpp",
+          "line": 310
+        }
+      ]
+    },
+    {
+      "name": "EventMergerTest",
+      "tests": 2,
+      "testsuite": [
+        {
+          "name": "MergesSmallStreamSetWithFastPath",
+          "file": "\/Users\/danilamalafeev\/Documents\/New project\/tests\/test_lob.cpp",
+          "line": 341
+        },
+        {
+          "name": "MergesLargeStreamSetWithHeapPath",
+          "file": "\/Users\/danilamalafeev\/Documents\/New project\/tests\/test_lob.cpp",
+          "line": 359
+        }
+      ]
+    },
+    {
+      "name": "MultiAssetBacktestEngineTest",
+      "tests": 1,
+      "testsuite": [
+        {
+          "name": "RoutesMergedEventsToAssetBooksAndStrategy",
+          "file": "\/Users\/danilamalafeev\/Documents\/New project\/tests\/test_lob.cpp",
+          "line": 378
         }
       ]
     }

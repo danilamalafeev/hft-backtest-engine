@@ -1,0 +1,70 @@
+#pragma once
+
+#include <cstdint>
+
+#include "lob/oms.hpp"
+#include "lob/trade.hpp"
+
+namespace lob {
+
+enum class LiquidityRole : std::uint8_t {
+    Maker,
+    Taker
+};
+
+struct MarketSnapshot {
+    std::uint64_t timestamp {};
+    double best_bid {};
+    double best_ask {};
+    double mid_price {};
+};
+
+struct FillEvent {
+    AssetID asset_id {};
+    std::uint64_t order_id {};
+    Side side {Side::Buy};
+    double price {};
+    std::uint64_t quantity {};
+    std::uint64_t timestamp {};
+    LiquidityRole liquidity_role {LiquidityRole::Maker};
+};
+
+using StrategyFill = FillEvent;
+
+class OrderGateway {
+public:
+    virtual ~OrderGateway() = default;
+
+    [[nodiscard]] virtual std::uint64_t submit_order(
+        AssetID asset_id,
+        Side side,
+        double price,
+        std::uint64_t quantity,
+        std::uint64_t timestamp
+    ) = 0;
+
+    [[nodiscard]] std::uint64_t submit_order(
+        Side side,
+        double price,
+        std::uint64_t quantity,
+        std::uint64_t timestamp
+    ) {
+        return submit_order(0U, side, price, quantity, timestamp);
+    }
+
+    [[nodiscard]] virtual bool cancel_order(AssetID asset_id, std::uint64_t order_id) = 0;
+
+    [[nodiscard]] bool cancel_order(std::uint64_t order_id) {
+        return cancel_order(0U, order_id);
+    }
+
+    [[nodiscard]] virtual OrderGroupResult execute_group(const OrderGroup& group) {
+        OrderGroupResult result {};
+        result.group_id = group.group_id;
+        return result;
+    }
+
+    [[nodiscard]] virtual std::uint64_t current_timestamp() const noexcept = 0;
+};
+
+}  // namespace lob
