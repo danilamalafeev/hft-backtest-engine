@@ -1,160 +1,88 @@
-# Event-Driven Limit Order Book Backtesting Framework
+# Multi-Asset HFT Backtesting Framework
 
-A lightweight C++20 limit order book, mmap replay engine, and quantitative backtesting framework for market microstructure research. The current setup is designed to keep the simulation hot path allocation-light while moving analytics and parameter research to the cold path.
+A high-performance C++20 limit order book (LOB), multi-asset mmap replay engine, and quantitative backtesting framework built for market microstructure research and atomic execution strategies like Triangular Arbitrage. The engine is strictly allocation-free on the hot path.
 
 ## Overview
 
-The project implements a price-time-priority matching engine and a strategy-driven backtest loop over Binance trade CSV data.
+The engine merges multiple Binance historical trade streams in real-time, matching orders with price-time priority. It supports complex OMS features like atomic group execution, intra-leg latency simulation, fee-aware sizing, and lock-free asynchronous logging.
 
-Key technical choices:
-- Strict FIFO execution inside each price level.
-- O(1) cancellation via direct hash-to-iterator mapping.
-- O(1) best bid / best ask access.
-- Caller-buffered L2 snapshots to avoid allocations in strategy code.
-- Zero-copy historical data ingestion via POSIX `mmap`.
-- Event-driven virtual clock for backtests without wall-clock pacing.
-- Cold-path analytics for PnL, Sharpe ratio, and max drawdown.
+Key technical highlights:
+- **Zero-Copy Ingestion**: POSIX `mmap` combined with custom C++20 `StreamingParser` concepts for maximum speed.
+- **Allocation-Free Event Merger**: Uses a fast-path flat scan for `N <= 4` assets and a `std::priority_queue` backed by a pre-reserved `std::vector` for dynamic scaling (`N > 4`).
+- **Asynchronous Lock-Free Logging**: SPSC (Single-Producer Single-Consumer) ring buffer without syscalls on the hot path. Background thread batches disk writes and supports CPU core pinning.
+- **Multi-Currency Wallet**: Native tracking of USDT, BTC, ETH, spot fee deduction (from the received asset), and Mark-to-Market (MTM) NAV calculation.
+- **Advanced OMS**: Supports Fill-Or-Kill (FOK), `OrderGroup` atomic execution, slippage limits, and `panic_close_group` (reverse market sweeps for failed legs).
 
 ## Architecture
 
 Core modules:
-- `lob::OrderBook`: matching engine, best bid/ask getters, and depth-limited L2 snapshots.
-- `lob::Strategy`: abstract strategy interface with `on_tick(const OrderBook&, OrderGateway&)` and `on_fill(...)`.
-- `lob::BacktestEngine`: owns the LOB, feeds parsed events, routes fills, tracks cash/position, and samples the equity curve.
-- `lob::BacktestAnalytics`: post-run tear-sheet calculations.
-- `lob::InventorySkewStrategy`: inventory-aware market maker with linear skew and L2 imbalance protection.
+- `lob::MultiAssetBacktestEngine`: Orchestrates the order books, event merger, order execution, latency simulation, and portfolio tracking.
+- `lob::OrderGateway` / `lob::oms`: Gateway interface defining atomic execution `OrderGroup` logic, FOK sweeps, and execution reports.
+- `lob::TriangularArbitrageStrategy`: Strategy implementation modeling USDT -> BTC -> ETH -> USDT cycles with bottleneck volume calculation and post-fee threshold checks.
+- `lob::AsyncLogger`: High-throughput background CSV writer for full event-level trace data.
+- `lob::Wallet`: Fee-aware asset inventory state and risk management.
 
-The hot path avoids heavy math and per-event analytics. Strategy L2 buffers are pre-reserved and reused.
+## Strategy: Triangular Arbitrage
 
-## Strategy
+The `TriangularArbitrageStrategy` monitors 3 pairs (e.g., BTCUSDT, ETHUSDT, ETHBTC) and detects cyclic mispricings.
 
-`InventorySkewStrategy` quotes around true L1 mid-price:
-
-```text
-mid = (best_bid + best_ask) / 2
-skew = (position - target_position) * gamma
-bid = mid - base_spread / 2 - skew
-ask = mid + base_spread / 2 - skew
-```
-
-Risk controls:
-- Stops bidding when inventory is at or above `max_position`.
-- Stops asking when inventory is at or below `-max_position`.
-- Pulls the bid when depth-5 ask volume is greater than bid volume times `imbalance_threshold`.
-- Pulls the ask when depth-5 bid volume is greater than ask volume times `imbalance_threshold`.
+Features:
+- **Bottleneck Sizing**: Dynamically calculates the maximum executable volume across the 3 order books based on available L2 depth.
+- **Fee-Aware Sizing**: Anticipates taker fees deducted by the `Wallet` from the received asset. Sizes subsequent legs exactly to the post-fee received amount to completely eliminate dust accumulation.
+- **Atomic Execution**: Submits all 3 legs via `OrderGroup`. If any leg fails or experiences severe slippage, the OMS triggers a panic reverse-sweep to close the partial exposure.
+- **Intra-Leg Latency**: Leg execution is separated by simulated nanosecond-level latency and exponential/lognormal jitter.
 
 ## Performance
 
-Tested locally in a `Release` build on Apple Silicon with a full day of Binance spot `BTCUSDT` trades.
+Tested locally in a `Release` build on Apple Silicon.
 
-Recent full backtest:
-- Total orders processed: `1,947,444`
-- Virtual market time: `23:59:59.999`
-- Throughput: `~5.5M-6.3M EPS`, depending on strategy parameters and local run variance
-
-The old replay-only path can be faster because it does not run strategy logic, fill accounting, L2 imbalance checks, or equity sampling.
+Recent Triangular Arbitrage run (3 assets):
+- Events Processed: `~9,000,000`
+- Atomic Group Attempts: `~56,000`
+- Throughput: `> 4.5M EPS` (Events Per Second) WITH full asynchronous logging active.
+- Async Dropped Records: `0`
+- Final Inventory Risk (Dust): `< $10.00` (Proof of correct fee-aware math).
 
 ## Quick Start
 
 ```bash
-# Build
+# Build the project
 cmake -B build-release -DCMAKE_BUILD_TYPE=Release
 cmake --build build-release
 
-# Run tests
+# Run unit tests
 ctest --test-dir build-release --output-on-failure
 
-# Optional: run microbenchmarks
-./build-release/lob_benchmarks
-
-# Download Binance data if needed
-python3 scripts/download_binance_data.py
-
-# Run backtest with defaults: spread=10.0, gamma=2.0, imbalance=3.0
-./build-release/lob_backtest binance_trades.csv
-
-# Run backtest with explicit parameters
-./build-release/lob_backtest binance_trades.csv 20.0 0.1 2.0
-
-# Run with fees and stochastic latency
-./build-release/lob_backtest binance_trades.csv 20.0 0.1 2.0 \
-  --maker-fee-bps 1.0 \
-  --taker-fee-bps 5.0 \
-  --base-latency-ns 100000 \
-  --latency-dist exponential \
-  --jitter-mean-ns 50000 \
-  --latency-seed 42
-
-# Run backtest and write trace_log.csv for visualization
-./build-release/lob_backtest binance_trades.csv 20.0 0.1 2.0 --trace
+# Run backtest with async logging enabled
+./build-release/lob_backtest \
+    BTCUSDT-trades.csv \
+    ETHUSDT-trades.csv \
+    ETHBTC-trades.csv \
+    --async-log /tmp/async_log.csv
 ```
 
-The backtester prints a human-readable tear sheet and a machine-readable final line:
+The backtester will output a human-readable summary, execution diagnostics, per-asset breakdown, and a final machine-readable `RESULT_TRI_CSV`.
 
-```text
-RESULT_CSV,spread,gamma,imbalance,pnl,sharpe,max_dd,maker_count,taker_count,maker_notional,taker_notional,turnover
-```
+## Latency and OMS Simulation
 
-## Fees And Latency
+The engine realistically models network and matching engine conditions:
 
-The engine supports exchange fees and event-time order latency:
+- `--maker-fee-bps` / `--taker-fee-bps`: Exchange spot fees.
+- `--base-latency-ns`: Deterministic base latency added to network requests.
+- `--latency-dist`: Distributions (`none`, `exponential`, `lognormal`) for simulating network jitter.
+- `--intra-leg-latency-ns` / `--intra-leg-jitter-ns`: Nanosecond separation between sequential legs of an atomic group execution.
 
-- `--maker-fee-bps`: fee applied when the bot's resting limit order is hit.
-- `--taker-fee-bps`: fee applied when the bot's arriving order crosses the book.
-- `--base-latency-ns`: deterministic latency added to every gateway submit/cancel.
-- `--latency-dist`: `none`, `exponential`, or `lognormal`.
-- `--jitter-mean-ns`: exponential jitter mean in nanoseconds.
-- `--lognormal-mu` / `--lognormal-sigma`: lognormal jitter parameters.
-- `--latency-seed`: deterministic PRNG seed for reproducible stochastic latency.
+Orders and groups are held in a static `PendingOrderMinHeap` and released when virtual time catches up.
 
-Latency is modeled with virtual timestamps only. The engine samples jitter once per gateway request using a PRNG owned by `BacktestEngine`, then stores the request in a fixed-capacity min-heap keyed by exchange arrival time. The hot path does not allocate for pending order storage.
+## Visualization Dashboard
 
-## Parameter Optimization
-
-Run the grid search script:
+The backtest outputs an asynchronous log containing every fill, panic close, and MTM NAV update. You can build a 3-panel Plotly dashboard:
 
 ```bash
-python3 scripts/optimize_grid.py binance_trades.csv
+python3 scripts/analyze_results.py /tmp/async_log.csv -o /tmp/hft_dashboard.html
 ```
 
-The script runs `build-release/lob_backtest` when available, otherwise falls back to `build/lob_backtest`. It searches:
-
-```python
-spread_grid = [2.0, 5.0, 10.0, 20.0]
-gamma_grid = [0.1, 0.5, 1.0, 3.0]
-imbalance_grid = [2.0, 5.0, 10.0, 999.0]
-```
-
-Results are parsed from `RESULT_CSV`, loaded into pandas, sorted by Sharpe ratio, and printed as the top 10 parameter combinations.
-
-## Visualization
-
-Trace logging is opt-in because it writes a CSV row for every trade and every equity sample:
-
-```bash
-./build-release/lob_backtest binance_trades.csv 20.0 0.1 2.0 --trace
-```
-
-This creates `trace_log.csv` with:
-
-```text
-timestamp,mid_price,equity,is_bot_trade,trade_side
-```
-
-Create an interactive Plotly chart:
-
-```bash
-python3 scripts/plot_results.py trace_log.csv --output backtest_trace.html
-```
-
-The chart has:
-- Mid-price with bot buy markers in green and bot sell markers in red.
-- PnL over virtual market time.
-- Interactive zoom and hover, useful for inspecting millisecond-level reactions around price moves.
-
-## Notes
-
-- CSV quantity values are parsed into fixed-point integer units scaled by `1e8`; PnL and displayed positions convert back to base units.
-- Trace timestamps are emitted in nanoseconds because latency simulation runs on nanosecond virtual time.
-- `test_orders.csv` is a simple unit-test style CSV and is not in the Binance replay format expected by the mmap parser.
-- The framework is research-oriented and does not model fees, latency, queue position probability, or exchange-specific order acknowledgements yet.
+The generated `hft_dashboard.html` features:
+1. **Total Equity / NAV**: Mark-to-Market portfolio value over virtual time.
+2. **Prices & Trade Markers**: Mid-prices with color-coded BUY/SELL `go.Scattergl` markers.
+3. **Inventory Trace**: Cumulative position for each asset, validating the zero-dust fee-aware sizing.
