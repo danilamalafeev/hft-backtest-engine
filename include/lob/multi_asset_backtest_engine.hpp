@@ -196,11 +196,25 @@ public:
     }
 
     [[nodiscard]] OrderGroupResult execute_group(const OrderGroup& group) override {
+        OrderGroupResult dummy {};
+        dummy.group_id = group.group_id;
+        
+        if (!pending_groups_.push(PendingGroup {
+            .release_time_ns = current_time_ns_ + sample_latency_ns(),
+            .group = group,
+        })) {
+            ++dropped_pending_orders_;
+        }
+        
+        return dummy;
+    }
+
+    void execute_pending_group(const OrderGroup& group, std::uint64_t release_time_ns) {
         OrderGroupResult result {};
         result.group_id = group.group_id;
-        log_group_event(group, LogEventType::OrderGroup, current_time_ns_, 0U, Side::Buy, 0.0, 0U);
+        log_group_event(group, LogEventType::OrderGroup, release_time_ns, 0U, Side::Buy, 0.0, 0U);
 
-        std::uint64_t leg_timestamp = current_time_ns_;
+        std::uint64_t leg_timestamp = release_time_ns;
         for (std::size_t leg_index = 0U; leg_index < kOrderGroupLegCount; ++leg_index) {
             leg_timestamp += sample_intra_leg_latency_ns(group);
 
@@ -220,12 +234,11 @@ public:
                     report.filled_quantity
                 );
                 panic_close_group(result, leg_index, leg_timestamp);
-                return result;
+                return;
             }
         }
 
         result.completed = true;
-        return result;
     }
 
 private:
@@ -244,24 +257,29 @@ private:
         std::uint64_t quantity {};
     };
 
-    template <std::size_t Capacity>
-    class PendingOrderMinHeap {
+    struct PendingGroup {
+        std::uint64_t release_time_ns {};
+        OrderGroup group {};
+    };
+
+    template <typename T, std::size_t Capacity>
+    class PendingMinHeap {
     public:
         [[nodiscard]] bool empty() const noexcept {
             return size_ == 0U;
         }
 
-        [[nodiscard]] const PendingOrder& top() const noexcept {
+        [[nodiscard]] const T& top() const noexcept {
             return heap_[0];
         }
 
-        bool push(const PendingOrder& order) noexcept {
+        bool push(const T& item) noexcept {
             if (size_ == Capacity) {
                 return false;
             }
 
             std::size_t index = size_++;
-            heap_[index] = order;
+            heap_[index] = item;
             while (index > 0U) {
                 const std::size_t parent = (index - 1U) / 2U;
                 if (heap_[parent].release_time_ns <= heap_[index].release_time_ns) {
@@ -298,7 +316,7 @@ private:
         }
 
     private:
-        std::array<PendingOrder, Capacity> heap_ {};
+        std::array<T, Capacity> heap_ {};
         std::size_t size_ {};
     };
 
@@ -329,14 +347,23 @@ private:
     }
 
     void release_pending_orders(std::uint64_t now_ns) {
-        while (!pending_orders_.empty()) {
-            const PendingOrder pending = pending_orders_.top();
-            if (pending.release_time_ns > now_ns) {
+        while (!pending_orders_.empty() || !pending_groups_.empty()) {
+            std::uint64_t next_order_time = pending_orders_.empty() ? std::numeric_limits<std::uint64_t>::max() : pending_orders_.top().release_time_ns;
+            std::uint64_t next_group_time = pending_groups_.empty() ? std::numeric_limits<std::uint64_t>::max() : pending_groups_.top().release_time_ns;
+
+            if (next_order_time > now_ns && next_group_time > now_ns) {
                 break;
             }
 
-            pending_orders_.pop();
-            execute_pending_order(pending);
+            if (next_order_time <= next_group_time) {
+                const PendingOrder pending = pending_orders_.top();
+                pending_orders_.pop();
+                execute_pending_order(pending);
+            } else {
+                const PendingGroup pending = pending_groups_.top();
+                pending_groups_.pop();
+                execute_pending_group(pending.group, pending.release_time_ns);
+            }
         }
     }
 
@@ -902,7 +929,8 @@ private:
     Config config_ {};
     EventMerger<N, Parser> merger_;
     std::array<OrderBook, N> books_ {};
-    PendingOrderMinHeap<kPendingOrderCapacity> pending_orders_ {};
+    PendingMinHeap<PendingOrder, kPendingOrderCapacity> pending_orders_ {};
+    PendingMinHeap<PendingGroup, kPendingOrderCapacity> pending_groups_ {};
     std::array<LiveOrder, kLiveOrderCapacity> live_orders_ {};
     std::size_t live_order_count_ {};
     std::vector<Trade> trade_buffer_ {};
