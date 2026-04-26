@@ -83,6 +83,7 @@ struct RuntimeOptions {
     lob::BacktestEngine::LatencyConfig latency {};
     std::string async_log_path {};
     bool trace_enabled {};
+    bool verbose_arb {};
 };
 
 [[nodiscard]] lob::MultiAssetBacktestEngine<3U>::LatencyDistribution ConvertMultiAssetLatencyDistribution(
@@ -210,6 +211,7 @@ int RunTriangularBacktest(
 
     lob::TriangularArbitrageStrategy strategy {lob::TriangularArbitrageStrategy::Config {
         .taker_fee_bps = runtime_options.taker_fee_bps,
+        .verbose = runtime_options.verbose_arb,
     }};
     std::unique_ptr<lob::AsyncLogger<>> async_logger {};
     if (!runtime_options.async_log_path.empty()) {
@@ -325,7 +327,7 @@ int main(int argc, char* argv[]) {
                       << " [--maker-fee-bps x] [--taker-fee-bps x] [--base-latency-ns n]"
                       << " [--latency-dist none|exponential|lognormal] [--jitter-mean-ns n]"
                       << " [--lognormal-mu x] [--lognormal-sigma x] [--latency-seed n]"
-                      << " [--async-log path]" << '\n';
+                      << " [--async-log path] [--verbose-arb]" << '\n';
             return 1;
         }
 
@@ -337,6 +339,8 @@ int main(int argc, char* argv[]) {
             const std::string argument {argv[index]};
             if (argument == "--trace") {
                 runtime_options.trace_enabled = true;
+            } else if (argument == "--verbose-arb") {
+                runtime_options.verbose_arb = true;
             } else if (argument == "--maker-fee-bps" && index + 1 < argc) {
                 runtime_options.maker_fee_bps = ParseDoubleArg(argv[++index], "maker_fee_bps");
             } else if (argument == "--taker-fee-bps" && index + 1 < argc) {
@@ -370,7 +374,7 @@ int main(int argc, char* argv[]) {
                       << " [--maker-fee-bps x] [--taker-fee-bps x] [--base-latency-ns n]"
                       << " [--latency-dist none|exponential|lognormal] [--jitter-mean-ns n]"
                       << " [--lognormal-mu x] [--lognormal-sigma x] [--latency-seed n]"
-                      << " [--async-log path]" << '\n';
+                      << " [--async-log path] [--verbose-arb]" << '\n';
             return 1;
         }
 

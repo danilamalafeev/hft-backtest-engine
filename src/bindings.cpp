@@ -75,6 +75,10 @@ public:
         fee_rate_bps_ = fee_rate;
     }
 
+    void set_verbose(bool verbose) noexcept {
+        verbose_ = verbose;
+    }
+
     [[nodiscard]] PyWallet run(const std::vector<std::string>& file_paths) const {
         if (file_paths.size() != 3U) {
             throw std::invalid_argument("TriangularEngine.run expects exactly 3 CSV file paths");
@@ -84,6 +88,7 @@ public:
 
         lob::TriangularArbitrageStrategy strategy {lob::TriangularArbitrageStrategy::Config {
             .taker_fee_bps = fee_rate_bps_,
+            .verbose = verbose_,
         }};
 
         Engine engine {strategy, Engine::PathArray {
@@ -105,6 +110,7 @@ public:
 private:
     std::uint64_t latency_ns_ {};
     double fee_rate_bps_ {};
+    bool verbose_ {};
 };
 
 }  // namespace
@@ -125,6 +131,7 @@ PYBIND11_MODULE(yabe, module) {
         .def(py::init<>())
         .def("set_latency_ns", &PyTriangularEngine::set_latency_ns, py::arg("ns"))
         .def("set_fee_rate", &PyTriangularEngine::set_fee_rate, py::arg("rate"))
+        .def("set_verbose", &PyTriangularEngine::set_verbose, py::arg("verbose"))
         .def(
             "run",
             &PyTriangularEngine::run,

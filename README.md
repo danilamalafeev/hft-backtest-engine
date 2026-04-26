@@ -88,6 +88,7 @@ import yabe
 engine = yabe.TriangularEngine()
 engine.set_latency_ns(500_000)
 engine.set_fee_rate(7.5)  # bps, same convention as the C++ CLI
+# engine.set_verbose(True)  # Optional: prints every detected arbitrage window.
 
 wallet = engine.run([
     "data/BTCUSDT-trades-2024-03-05.csv",
@@ -108,7 +109,7 @@ PY
 - `1 = BTC`
 - `2 = ETH`
 
-`TriangularEngine.run(...)` releases the Python GIL while the C++ replay loop is running, so Python threads are not blocked by the hot C++ simulation.
+`TriangularEngine.run(...)` is quiet by default and releases the Python GIL while the C++ replay loop is running, so Python threads are not blocked by the hot C++ simulation.
 
 ## Latency and OMS Simulation
 

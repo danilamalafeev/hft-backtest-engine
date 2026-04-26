@@ -22,6 +22,7 @@ public:
         std::uint64_t cooldown_ns {50'000'000ULL};
         std::uint64_t intra_leg_latency_ns {75U};
         std::uint64_t intra_leg_jitter_ns {25U};
+        bool verbose {};
     };
 
     TriangularArbitrageStrategy() = default;
@@ -163,9 +164,11 @@ private:
             return;
         }
 
-        std::cout << "ARB_DETECTED,path=USDT_BTC_ETH_USDT,ts_ns=" << timestamp
-                  << ",rate=" << std::fixed << std::setprecision(8) << rate
-                  << ",bottleneck_usdt=" << std::setprecision(2) << bottleneck_usdt << '\n';
+        if (config_.verbose) {
+            std::cout << "ARB_DETECTED,path=USDT_BTC_ETH_USDT,ts_ns=" << timestamp
+                      << ",rate=" << std::fixed << std::setprecision(8) << rate
+                      << ",bottleneck_usdt=" << std::setprecision(2) << bottleneck_usdt << '\n';
+        }
 
         OrderGroup group {
             .group_id = next_group_id_++,
@@ -219,9 +222,11 @@ private:
             return;
         }
 
-        std::cout << "ARB_DETECTED,path=USDT_ETH_BTC_USDT,ts_ns=" << timestamp
-                  << ",rate=" << std::fixed << std::setprecision(8) << rate
-                  << ",bottleneck_usdt=" << std::setprecision(2) << bottleneck_usdt << '\n';
+        if (config_.verbose) {
+            std::cout << "ARB_DETECTED,path=USDT_ETH_BTC_USDT,ts_ns=" << timestamp
+                      << ",rate=" << std::fixed << std::setprecision(8) << rate
+                      << ",bottleneck_usdt=" << std::setprecision(2) << bottleneck_usdt << '\n';
+        }
 
         OrderGroup group {
             .group_id = next_group_id_++,
