@@ -2780,3 +2780,706 @@ events:
       variable: "RUN_HAVE_PTHREAD_AFFINITY"
       cached: true
 ...
+
+---
+events:
+  -
+    kind: "find_package-v1"
+    backtrace:
+      - "CMakeLists.txt:29 (find_package)"
+    name: "pybind11"
+    configs:
+      -
+        filename: "pybind11.cps"
+        kind: "cps"
+      -
+        filename: "pybind11Config.cmake"
+        kind: "cmake"
+      -
+        filename: "pybind11-config.cmake"
+        kind: "cmake"
+    version_request:
+      exact: false
+    settings:
+      required: "optional"
+      quiet: true
+      global: false
+      policy_scope: true
+      bypass_provider: false
+      names:
+        - "pybind11"
+      path_suffixes:
+        - ""
+      paths:
+        CMAKE_FIND_USE_CMAKE_PATH: true
+        CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+        CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+        CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+        CMAKE_FIND_USE_INSTALL_PREFIX: true
+        CMAKE_FIND_USE_PACKAGE_ROOT_PATH: true
+        CMAKE_FIND_USE_CMAKE_PACKAGE_REGISTRY: true
+        CMAKE_FIND_USE_SYSTEM_PACKAGE_REGISTRY: true
+        CMAKE_FIND_ROOT_PATH_MODE: "BOTH"
+    candidates:
+      -
+        path: "/Users/danilamalafeev/Documents/New project/build-release/CMakeFiles/pkgRedirects/pybind11Config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/Users/danilamalafeev/Documents/New project/build-release/CMakeFiles/pkgRedirects/pybind11-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/Users/danilamalafeev/Documents/New project/build-release/CMakeFiles/pkgRedirects/lib64/cps/pybind11.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/Users/danilamalafeev/Documents/New project/build-release/CMakeFiles/pkgRedirects/lib/cps/pybind11.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/Users/danilamalafeev/Documents/New project/build-release/CMakeFiles/pkgRedirects/share/cps/pybind11.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/Users/danilamalafeev/.codex/tmp/arg0/codex-arg0u1CckF/pybind11Config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/Users/danilamalafeev/.codex/tmp/arg0/codex-arg0u1CckF/pybind11-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/Users/danilamalafeev/.codex/tmp/arg0/codex-arg0u1CckF/lib64/cps/pybind11.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/Users/danilamalafeev/.codex/tmp/arg0/codex-arg0u1CckF/lib/cps/pybind11.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/Users/danilamalafeev/.codex/tmp/arg0/codex-arg0u1CckF/share/cps/pybind11.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/anaconda3/pybind11Config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/anaconda3/pybind11-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/anaconda3/cmake/pybind11Config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/anaconda3/cmake/pybind11-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/anaconda3/lib64/cps/pybind11.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/anaconda3/lib/cps/pybind11.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/anaconda3/share/cps/pybind11.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/anaconda3/condabin/pybind11Config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/anaconda3/condabin/pybind11-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/anaconda3/condabin/lib64/cps/pybind11.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/anaconda3/condabin/lib/cps/pybind11.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/anaconda3/condabin/share/cps/pybind11.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/pybind11Config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/pybind11-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib64/cps/pybind11.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/lib/cps/pybind11.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/share/cps/pybind11.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/usr/local/pybind11Config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/usr/local/pybind11-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/usr/local/lib64/cps/pybind11.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/usr/local/lib/cps/pybind11.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/usr/local/share/cps/pybind11.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/System/Cryptexes/App/usr/pybind11Config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/System/Cryptexes/App/usr/pybind11-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/System/Cryptexes/App/usr/lib64/cps/pybind11.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/System/Cryptexes/App/usr/lib/cps/pybind11.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/System/Cryptexes/App/usr/share/cps/pybind11.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/usr/pybind11Config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/usr/pybind11-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/usr/lib64/cps/pybind11.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/usr/lib/cps/pybind11.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/usr/share/cps/pybind11.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/pybind11Config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/pybind11-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/lib64/cps/pybind11.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/lib/cps/pybind11.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/share/cps/pybind11.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/Library/Apple/usr/pybind11Config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/Library/Apple/usr/pybind11-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/Library/Apple/usr/lib64/cps/pybind11.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/Library/Apple/usr/lib/cps/pybind11.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/Library/Apple/usr/share/cps/pybind11.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/Applications/Codex.app/Contents/Resources/pybind11Config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/Applications/Codex.app/Contents/Resources/pybind11-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/Applications/Codex.app/Contents/Resources/lib64/cps/pybind11.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/Applications/Codex.app/Contents/Resources/lib/cps/pybind11.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/Applications/Codex.app/Contents/Resources/share/cps/pybind11.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/pybind11Config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/pybind11-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib64/cps/pybind11.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/cps/pybind11.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/share/cps/pybind11.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/pybind11Config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/pybind11-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/lib64/cps/pybind11.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/lib/cps/pybind11.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/share/cps/pybind11.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/System/Library/Frameworks/pybind11Config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/System/Library/Frameworks/pybind11-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/System/Library/Frameworks/lib64/cps/pybind11.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/System/Library/Frameworks/lib/cps/pybind11.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/System/Library/Frameworks/share/cps/pybind11.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks/pybind11Config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks/pybind11-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks/lib64/cps/pybind11.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks/lib/cps/pybind11.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks/share/cps/pybind11.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/pybind11Config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/pybind11-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/lib64/cps/pybind11.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/lib/cps/pybind11.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/share/cps/pybind11.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/Library/Frameworks/pybind11Config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/Library/Frameworks/pybind11-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/Library/Frameworks/lib64/cps/pybind11.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/Library/Frameworks/lib/cps/pybind11.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/Library/Frameworks/share/cps/pybind11.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/System/Library/Frameworks/pybind11Config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/System/Library/Frameworks/pybind11-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/System/Library/Frameworks/lib64/cps/pybind11.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/System/Library/Frameworks/lib/cps/pybind11.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/System/Library/Frameworks/share/cps/pybind11.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/Users/danilamalafeev/Applications/pybind11Config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/Users/danilamalafeev/Applications/pybind11-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/Users/danilamalafeev/Applications/lib64/cps/pybind11.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/Users/danilamalafeev/Applications/lib/cps/pybind11.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/Users/danilamalafeev/Applications/share/cps/pybind11.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/Applications/pybind11Config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/Applications/pybind11-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/Applications/lib64/cps/pybind11.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/Applications/lib/cps/pybind11.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/Applications/share/cps/pybind11.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/Applications/Xcode.app/Contents/Applications/pybind11Config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/Applications/Xcode.app/Contents/Applications/pybind11-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/Applications/Xcode.app/Contents/Applications/lib64/cps/pybind11.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/Applications/Xcode.app/Contents/Applications/lib/cps/pybind11.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/Applications/Xcode.app/Contents/Applications/share/cps/pybind11.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/Applications/Xcode.app/Contents/Developer/Applications/pybind11Config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/Applications/Xcode.app/Contents/Developer/Applications/pybind11-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/Applications/Xcode.app/Contents/Developer/Applications/lib64/cps/pybind11.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/Applications/Xcode.app/Contents/Developer/Applications/lib/cps/pybind11.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/Applications/Xcode.app/Contents/Developer/Applications/share/cps/pybind11.cps"
+        mode: "cps"
+        reason: "no_exist"
+    found: null
+    search_context:
+      ENV{PATH}:
+        - "/Users/danilamalafeev/.codex/tmp/arg0/codex-arg0u1CckF"
+        - "/opt/anaconda3/bin"
+        - "/opt/anaconda3/condabin"
+        - "/opt/homebrew/bin"
+        - "/opt/homebrew/sbin"
+        - "/usr/local/bin"
+        - "/System/Cryptexes/App/usr/bin"
+        - "/usr/bin"
+        - "/bin"
+        - "/usr/sbin"
+        - "/sbin"
+        - "/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin"
+        - "/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin"
+        - "/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin"
+        - "/opt/pmk/env/global/bin"
+        - "/Library/Apple/usr/bin"
+        - "/Applications/Codex.app/Contents/Resources"
+      CMAKE_INSTALL_PREFIX: "/usr/local"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr"
+        - "/opt/homebrew"
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/opt/homebrew"
+        - "/usr/local"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+        - "/sw"
+        - "/opt/local"
+      CMAKE_SYSTEM_FRAMEWORK_PATH:
+        - "~/Library/Frameworks"
+        - "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/Library/Frameworks"
+        - "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/Network/Library/Frameworks"
+        - "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/System/Library/Frameworks"
+        - "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks"
+        - "/Applications/Xcode.app/Contents/Developer/Library/Frameworks"
+        - "/Library/Frameworks"
+        - "/Network/Library/Frameworks"
+        - "/System/Library/Frameworks"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "build-release/_deps/pybind11-src/tools/FindPythonLibsNew.cmake:78 (find_program)"
+      - "build-release/_deps/pybind11-src/tools/pybind11Tools.cmake:50 (find_package)"
+      - "build-release/_deps/pybind11-src/tools/pybind11Common.cmake:228 (include)"
+      - "build-release/_deps/pybind11-src/CMakeLists.txt:251 (include)"
+    mode: "program"
+    variable: "PYTHON_EXECUTABLE"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "FIRST"
+      SearchAppBundle: "FIRST"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "python"
+    candidate_directories:
+      - "/opt/anaconda3/"
+      - "/opt/anaconda3/bin/"
+    found: "/opt/anaconda3/python.app/Contents/MacOS/python"
+    search_context:
+      ENV{PATH}:
+        - "/Users/danilamalafeev/.codex/tmp/arg0/codex-arg0u1CckF"
+        - "/opt/anaconda3/bin"
+        - "/opt/anaconda3/condabin"
+        - "/opt/homebrew/bin"
+        - "/opt/homebrew/sbin"
+        - "/usr/local/bin"
+        - "/System/Cryptexes/App/usr/bin"
+        - "/usr/bin"
+        - "/bin"
+        - "/usr/sbin"
+        - "/sbin"
+        - "/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin"
+        - "/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin"
+        - "/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin"
+        - "/opt/pmk/env/global/bin"
+        - "/Library/Apple/usr/bin"
+        - "/Applications/Codex.app/Contents/Resources"
+      CMAKE_INSTALL_PREFIX: "/usr/local"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr"
+        - "/opt/homebrew"
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/opt/homebrew"
+        - "/usr/local"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+        - "/sw"
+        - "/opt/local"
+      CMAKE_SYSTEM_APPBUNDLE_PATH:
+        - "/Users/danilamalafeev/Applications"
+        - "/Applications"
+        - "/Applications/Xcode.app/Contents/Applications"
+        - "/Applications/Xcode.app/Contents/Developer/Applications"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "build-release/_deps/pybind11-src/tools/FindPythonLibsNew.cmake:277 (find_library)"
+      - "build-release/_deps/pybind11-src/tools/pybind11Tools.cmake:50 (find_package)"
+      - "build-release/_deps/pybind11-src/tools/pybind11Common.cmake:228 (include)"
+      - "build-release/_deps/pybind11-src/CMakeLists.txt:251 (include)"
+    mode: "library"
+    variable: "PYTHON_LIBRARY"
+    description: "Path to a library."
+    settings:
+      SearchFramework: "FIRST"
+      SearchAppBundle: "FIRST"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "python3.12"
+    candidate_directories:
+      - "/opt/anaconda3/lib/"
+    found: "/opt/anaconda3/lib/libpython3.12.dylib"
+    search_context:
+      ENV{PATH}:
+        - "/Users/danilamalafeev/.codex/tmp/arg0/codex-arg0u1CckF"
+        - "/opt/anaconda3/bin"
+        - "/opt/anaconda3/condabin"
+        - "/opt/homebrew/bin"
+        - "/opt/homebrew/sbin"
+        - "/usr/local/bin"
+        - "/System/Cryptexes/App/usr/bin"
+        - "/usr/bin"
+        - "/bin"
+        - "/usr/sbin"
+        - "/sbin"
+        - "/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin"
+        - "/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin"
+        - "/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin"
+        - "/opt/pmk/env/global/bin"
+        - "/Library/Apple/usr/bin"
+        - "/Applications/Codex.app/Contents/Resources"
+      CMAKE_INSTALL_PREFIX: "/usr/local"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr"
+        - "/opt/homebrew"
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/opt/homebrew"
+        - "/usr/local"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+        - "/sw"
+        - "/opt/local"
+      CMAKE_SYSTEM_LIBRARY_PATH:
+        - "/usr/lib/X11"
+      CMAKE_SYSTEM_FRAMEWORK_PATH:
+        - "~/Library/Frameworks"
+        - "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/Library/Frameworks"
+        - "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/Network/Library/Frameworks"
+        - "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/System/Library/Frameworks"
+        - "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks"
+        - "/Applications/Xcode.app/Contents/Developer/Library/Frameworks"
+        - "/Library/Frameworks"
+        - "/Network/Library/Frameworks"
+        - "/System/Library/Frameworks"
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/opt/homebrew/share/cmake/Modules/Internal/CheckSourceCompiles.cmake:104 (try_compile)"
+      - "/opt/homebrew/share/cmake/Modules/Internal/CheckCompilerFlag.cmake:18 (cmake_check_source_compiles)"
+      - "/opt/homebrew/share/cmake/Modules/CheckCXXCompilerFlag.cmake:103 (cmake_check_compiler_flag)"
+      - "build-release/_deps/pybind11-src/tools/pybind11Common.cmake:323 (check_cxx_compiler_flag)"
+      - "build-release/_deps/pybind11-src/tools/pybind11Common.cmake:363 (_pybind11_return_if_cxx_and_linker_flags_work)"
+      - "build-release/_deps/pybind11-src/tools/pybind11Common.cmake:435 (_pybind11_generate_lto)"
+      - "build-release/_deps/pybind11-src/CMakeLists.txt:251 (include)"
+    checks:
+      - "Performing Test HAS_FLTO_THIN"
+    directories:
+      source: "/Users/danilamalafeev/Documents/New project/build-release/CMakeFiles/CMakeScratch/TryCompile-x2KTAQ"
+      binary: "/Users/danilamalafeev/Documents/New project/build-release/CMakeFiles/CMakeScratch/TryCompile-x2KTAQ"
+    cmakeVariables:
+      CMAKE_CXX_FLAGS: ""
+      CMAKE_CXX_FLAGS_DEBUG: "-g"
+      CMAKE_CXX_STDLIB_MODULES_JSON: ""
+      CMAKE_EXE_LINKER_FLAGS: ""
+      CMAKE_MODULE_PATH: ""
+      CMAKE_OSX_ARCHITECTURES: ""
+      CMAKE_OSX_DEPLOYMENT_TARGET: ""
+      CMAKE_OSX_SYSROOT: ""
+    buildResult:
+      variable: "HAS_FLTO_THIN"
+      cached: true
+      stdout: |
+        Change Dir: '/Users/danilamalafeev/Documents/New project/build-release/CMakeFiles/CMakeScratch/TryCompile-x2KTAQ'
+        
+        Run Build Command(s): /opt/homebrew/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_b1275/fast
+        /Applications/Xcode.app/Contents/Developer/usr/bin/make  -f CMakeFiles/cmTC_b1275.dir/build.make CMakeFiles/cmTC_b1275.dir/build
+        Building CXX object CMakeFiles/cmTC_b1275.dir/src.cxx.o
+        /usr/bin/c++ -DHAS_FLTO_THIN  -std=c++20 -arch arm64   -flto -MD -MT CMakeFiles/cmTC_b1275.dir/src.cxx.o -MF CMakeFiles/cmTC_b1275.dir/src.cxx.o.d -o CMakeFiles/cmTC_b1275.dir/src.cxx.o -c "/Users/danilamalafeev/Documents/New project/build-release/CMakeFiles/CMakeScratch/TryCompile-x2KTAQ/src.cxx"
+        Linking CXX executable cmTC_b1275
+        /opt/homebrew/bin/cmake -E cmake_link_script CMakeFiles/cmTC_b1275.dir/link.txt --verbose=1
+        /usr/bin/c++  -arch arm64 CMakeFiles/cmTC_b1275.dir/src.cxx.o -o cmTC_b1275  -flto
+        
+      exitCode: 0
+...

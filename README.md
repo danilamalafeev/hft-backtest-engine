@@ -1,6 +1,6 @@
-# Multi-Asset HFT Backtesting Framework
+# YABE: Yet Another Backtest Engine
 
-A high-performance C++20 limit order book (LOB), multi-asset mmap replay engine, and quantitative backtesting framework built for market microstructure research and atomic execution strategies like Triangular Arbitrage. The engine is strictly allocation-free on the hot path.
+YABE is a high-performance C++20 limit order book (LOB), multi-asset mmap replay engine, and quantitative backtesting framework built for market microstructure research and atomic execution strategies like Triangular Arbitrage. The engine is strictly allocation-free on the hot path and now ships with a `pybind11` Python module for research workflows.
 
 ## Overview
 
@@ -21,6 +21,7 @@ Core modules:
 - `lob::TriangularArbitrageStrategy`: Strategy implementation modeling USDT -> BTC -> ETH -> USDT cycles with bottleneck volume calculation and post-fee threshold checks.
 - `lob::AsyncLogger`: High-throughput background CSV writer for full event-level trace data.
 - `lob::Wallet`: Fee-aware asset inventory state and risk management.
+- `yabe` Python module: Thin `pybind11` binding exposing `TriangularEngine` and final `Wallet` state.
 
 ## Strategy: Triangular Arbitrage
 
@@ -63,6 +64,52 @@ ctest --test-dir build-release --output-on-failure
 
 The backtester will output a human-readable summary, execution diagnostics, per-asset breakdown, and a final machine-readable `RESULT_TRI_CSV`.
 
+## Python API
+
+Build the Python extension:
+
+```bash
+cmake -B build-release -DCMAKE_BUILD_TYPE=Release
+cmake --build build-release --target yabe
+```
+
+The module is emitted as:
+
+```bash
+build-release/yabe.so
+```
+
+Use it from Python by adding the build directory to `PYTHONPATH`:
+
+```bash
+PYTHONPATH=build-release python3 - <<'PY'
+import yabe
+
+engine = yabe.TriangularEngine()
+engine.set_latency_ns(500_000)
+engine.set_fee_rate(7.5)  # bps, same convention as the C++ CLI
+
+wallet = engine.run([
+    "data/BTCUSDT-trades-2024-03-05.csv",
+    "data/ETHUSDT-trades-2024-03-05.csv",
+    "data/ETHBTC-trades-2024-03-05.csv",
+])
+
+print("USDT:", wallet.usdt)
+print("BTC:", wallet.btc)
+print("ETH:", wallet.eth)
+print("NAV:", wallet.get_nav())
+print("Inventory risk:", wallet.get_total_inventory_risk())
+PY
+```
+
+`Wallet.balance(asset_id)` uses the Python-facing wallet ids:
+- `0 = USDT`
+- `1 = BTC`
+- `2 = ETH`
+
+`TriangularEngine.run(...)` releases the Python GIL while the C++ replay loop is running, so Python threads are not blocked by the hot C++ simulation.
+
 ## Latency and OMS Simulation
 
 The engine realistically models network and matching engine conditions:
@@ -70,7 +117,7 @@ The engine realistically models network and matching engine conditions:
 - `--maker-fee-bps` / `--taker-fee-bps`: Exchange spot fees.
 - `--base-latency-ns`: Deterministic base latency added to network requests.
 - `--latency-dist`: Distributions (`none`, `exponential`, `lognormal`) for simulating network jitter.
-- `--intra-leg-latency-ns` / `--intra-leg-jitter-ns`: Nanosecond separation between sequential legs of an atomic group execution.
+- Atomic triangular execution also applies a nanosecond-scale intra-leg latency and jitter between legs inside the C++ OMS.
 
 Orders and groups are held in a static `PendingOrderMinHeap` and released when virtual time catches up.
 

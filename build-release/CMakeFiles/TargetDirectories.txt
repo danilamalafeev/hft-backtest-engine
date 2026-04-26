@@ -1,4 +1,5 @@
 /Users/danilamalafeev/Documents/New project/build-release/CMakeFiles/lob_core.dir
+/Users/danilamalafeev/Documents/New project/build-release/CMakeFiles/yabe.dir
 /Users/danilamalafeev/Documents/New project/build-release/CMakeFiles/lob_tests.dir
 /Users/danilamalafeev/Documents/New project/build-release/CMakeFiles/lob_benchmarks.dir
 /Users/danilamalafeev/Documents/New project/build-release/CMakeFiles/lob_backtest.dir
@@ -51,3 +52,10 @@
 /Users/danilamalafeev/Documents/New project/build-release/_deps/googlebenchmark-build/src/CMakeFiles/install.dir
 /Users/danilamalafeev/Documents/New project/build-release/_deps/googlebenchmark-build/src/CMakeFiles/install/local.dir
 /Users/danilamalafeev/Documents/New project/build-release/_deps/googlebenchmark-build/src/CMakeFiles/install/strip.dir
+/Users/danilamalafeev/Documents/New project/build-release/_deps/pybind11-build/CMakeFiles/test.dir
+/Users/danilamalafeev/Documents/New project/build-release/_deps/pybind11-build/CMakeFiles/edit_cache.dir
+/Users/danilamalafeev/Documents/New project/build-release/_deps/pybind11-build/CMakeFiles/rebuild_cache.dir
+/Users/danilamalafeev/Documents/New project/build-release/_deps/pybind11-build/CMakeFiles/list_install_components.dir
+/Users/danilamalafeev/Documents/New project/build-release/_deps/pybind11-build/CMakeFiles/install.dir
+/Users/danilamalafeev/Documents/New project/build-release/_deps/pybind11-build/CMakeFiles/install/local.dir
+/Users/danilamalafeev/Documents/New project/build-release/_deps/pybind11-build/CMakeFiles/install/strip.dir

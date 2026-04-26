@@ -1,10 +1,10 @@
-Start testing: Apr 26 17:55 MSK
+Start testing: Apr 26 21:03 MSK
 ----------------------------------------------------------
 1/13 Testing: OrderBookTest.InitializesSuccessfully
 1/13 Test: OrderBookTest.InitializesSuccessfully
 Command: "/Users/danilamalafeev/Documents/New project/build-release/lob_tests" "--gtest_filter=OrderBookTest.InitializesSuccessfully" "--gtest_also_run_disabled_tests"
 Directory: /Users/danilamalafeev/Documents/New project/build-release
-"OrderBookTest.InitializesSuccessfully" start time: Apr 26 17:55 MSK
+"OrderBookTest.InitializesSuccessfully" start time: Apr 26 21:03 MSK
 Output:
 ----------------------------------------------------------
 Running main() from /Users/danilamalafeev/Documents/New project/build-release/_deps/googletest-src/googletest/src/gtest_main.cc
@@ -20,10 +20,10 @@ Note: Google Test filter = OrderBookTest.InitializesSuccessfully
 [==========] 1 test from 1 test suite ran. (0 ms total)
 [  PASSED  ] 1 test.
 <end of output>
-Test time =   0.01 sec
+Test time =   0.00 sec
 ----------------------------------------------------------
 Test Passed.
-"OrderBookTest.InitializesSuccessfully" end time: Apr 26 17:55 MSK
+"OrderBookTest.InitializesSuccessfully" end time: Apr 26 21:03 MSK
 "OrderBookTest.InitializesSuccessfully" time elapsed: 00:00:00
 ----------------------------------------------------------
 
@@ -31,7 +31,7 @@ Test Passed.
 2/13 Test: OrderBookTest.ProcessOrderRestsBuyOrderWhenBookDoesNotCross
 Command: "/Users/danilamalafeev/Documents/New project/build-release/lob_tests" "--gtest_filter=OrderBookTest.ProcessOrderRestsBuyOrderWhenBookDoesNotCross" "--gtest_also_run_disabled_tests"
 Directory: /Users/danilamalafeev/Documents/New project/build-release
-"OrderBookTest.ProcessOrderRestsBuyOrderWhenBookDoesNotCross" start time: Apr 26 17:55 MSK
+"OrderBookTest.ProcessOrderRestsBuyOrderWhenBookDoesNotCross" start time: Apr 26 21:03 MSK
 Output:
 ----------------------------------------------------------
 Running main() from /Users/danilamalafeev/Documents/New project/build-release/_deps/googletest-src/googletest/src/gtest_main.cc
@@ -50,7 +50,7 @@ Note: Google Test filter = OrderBookTest.ProcessOrderRestsBuyOrderWhenBookDoesNo
 Test time =   0.00 sec
 ----------------------------------------------------------
 Test Passed.
-"OrderBookTest.ProcessOrderRestsBuyOrderWhenBookDoesNotCross" end time: Apr 26 17:55 MSK
+"OrderBookTest.ProcessOrderRestsBuyOrderWhenBookDoesNotCross" end time: Apr 26 21:03 MSK
 "OrderBookTest.ProcessOrderRestsBuyOrderWhenBookDoesNotCross" time elapsed: 00:00:00
 ----------------------------------------------------------
 
@@ -58,7 +58,7 @@ Test Passed.
 3/13 Test: OrderBookTest.ProcessOrderRestsSellOrderWhenBookDoesNotCross
 Command: "/Users/danilamalafeev/Documents/New project/build-release/lob_tests" "--gtest_filter=OrderBookTest.ProcessOrderRestsSellOrderWhenBookDoesNotCross" "--gtest_also_run_disabled_tests"
 Directory: /Users/danilamalafeev/Documents/New project/build-release
-"OrderBookTest.ProcessOrderRestsSellOrderWhenBookDoesNotCross" start time: Apr 26 17:55 MSK
+"OrderBookTest.ProcessOrderRestsSellOrderWhenBookDoesNotCross" start time: Apr 26 21:03 MSK
 Output:
 ----------------------------------------------------------
 Running main() from /Users/danilamalafeev/Documents/New project/build-release/_deps/googletest-src/googletest/src/gtest_main.cc
@@ -77,7 +77,7 @@ Note: Google Test filter = OrderBookTest.ProcessOrderRestsSellOrderWhenBookDoesN
 Test time =   0.00 sec
 ----------------------------------------------------------
 Test Passed.
-"OrderBookTest.ProcessOrderRestsSellOrderWhenBookDoesNotCross" end time: Apr 26 17:55 MSK
+"OrderBookTest.ProcessOrderRestsSellOrderWhenBookDoesNotCross" end time: Apr 26 21:03 MSK
 "OrderBookTest.ProcessOrderRestsSellOrderWhenBookDoesNotCross" time elapsed: 00:00:00
 ----------------------------------------------------------
 
@@ -85,7 +85,7 @@ Test Passed.
 4/13 Test: OrderBookTest.ProcessOrderMatchesCrossSpreadUsingPriceTimePriority
 Command: "/Users/danilamalafeev/Documents/New project/build-release/lob_tests" "--gtest_filter=OrderBookTest.ProcessOrderMatchesCrossSpreadUsingPriceTimePriority" "--gtest_also_run_disabled_tests"
 Directory: /Users/danilamalafeev/Documents/New project/build-release
-"OrderBookTest.ProcessOrderMatchesCrossSpreadUsingPriceTimePriority" start time: Apr 26 17:55 MSK
+"OrderBookTest.ProcessOrderMatchesCrossSpreadUsingPriceTimePriority" start time: Apr 26 21:03 MSK
 Output:
 ----------------------------------------------------------
 Running main() from /Users/danilamalafeev/Documents/New project/build-release/_deps/googletest-src/googletest/src/gtest_main.cc
@@ -104,7 +104,7 @@ Note: Google Test filter = OrderBookTest.ProcessOrderMatchesCrossSpreadUsingPric
 Test time =   0.00 sec
 ----------------------------------------------------------
 Test Passed.
-"OrderBookTest.ProcessOrderMatchesCrossSpreadUsingPriceTimePriority" end time: Apr 26 17:55 MSK
+"OrderBookTest.ProcessOrderMatchesCrossSpreadUsingPriceTimePriority" end time: Apr 26 21:03 MSK
 "OrderBookTest.ProcessOrderMatchesCrossSpreadUsingPriceTimePriority" time elapsed: 00:00:00
 ----------------------------------------------------------
 
@@ -112,7 +112,7 @@ Test Passed.
 5/13 Test: OrderBookTest.ProcessOrderRestsResidualQuantityAfterPartialIncomingFill
 Command: "/Users/danilamalafeev/Documents/New project/build-release/lob_tests" "--gtest_filter=OrderBookTest.ProcessOrderRestsResidualQuantityAfterPartialIncomingFill" "--gtest_also_run_disabled_tests"
 Directory: /Users/danilamalafeev/Documents/New project/build-release
-"OrderBookTest.ProcessOrderRestsResidualQuantityAfterPartialIncomingFill" start time: Apr 26 17:55 MSK
+"OrderBookTest.ProcessOrderRestsResidualQuantityAfterPartialIncomingFill" start time: Apr 26 21:03 MSK
 Output:
 ----------------------------------------------------------
 Running main() from /Users/danilamalafeev/Documents/New project/build-release/_deps/googletest-src/googletest/src/gtest_main.cc
@@ -131,7 +131,7 @@ Note: Google Test filter = OrderBookTest.ProcessOrderRestsResidualQuantityAfterP
 Test time =   0.00 sec
 ----------------------------------------------------------
 Test Passed.
-"OrderBookTest.ProcessOrderRestsResidualQuantityAfterPartialIncomingFill" end time: Apr 26 17:55 MSK
+"OrderBookTest.ProcessOrderRestsResidualQuantityAfterPartialIncomingFill" end time: Apr 26 21:03 MSK
 "OrderBookTest.ProcessOrderRestsResidualQuantityAfterPartialIncomingFill" time elapsed: 00:00:00
 ----------------------------------------------------------
 
@@ -139,7 +139,7 @@ Test Passed.
 6/13 Test: OrderBookTest.CancelOrderRemovesEmptyBidPriceLevelAndIndexEntry
 Command: "/Users/danilamalafeev/Documents/New project/build-release/lob_tests" "--gtest_filter=OrderBookTest.CancelOrderRemovesEmptyBidPriceLevelAndIndexEntry" "--gtest_also_run_disabled_tests"
 Directory: /Users/danilamalafeev/Documents/New project/build-release
-"OrderBookTest.CancelOrderRemovesEmptyBidPriceLevelAndIndexEntry" start time: Apr 26 17:55 MSK
+"OrderBookTest.CancelOrderRemovesEmptyBidPriceLevelAndIndexEntry" start time: Apr 26 21:03 MSK
 Output:
 ----------------------------------------------------------
 Running main() from /Users/danilamalafeev/Documents/New project/build-release/_deps/googletest-src/googletest/src/gtest_main.cc
@@ -158,7 +158,7 @@ Note: Google Test filter = OrderBookTest.CancelOrderRemovesEmptyBidPriceLevelAnd
 Test time =   0.00 sec
 ----------------------------------------------------------
 Test Passed.
-"OrderBookTest.CancelOrderRemovesEmptyBidPriceLevelAndIndexEntry" end time: Apr 26 17:55 MSK
+"OrderBookTest.CancelOrderRemovesEmptyBidPriceLevelAndIndexEntry" end time: Apr 26 21:03 MSK
 "OrderBookTest.CancelOrderRemovesEmptyBidPriceLevelAndIndexEntry" time elapsed: 00:00:00
 ----------------------------------------------------------
 
@@ -166,7 +166,7 @@ Test Passed.
 7/13 Test: OrderBookTest.CancelOrderReturnsFalseForUnknownId
 Command: "/Users/danilamalafeev/Documents/New project/build-release/lob_tests" "--gtest_filter=OrderBookTest.CancelOrderReturnsFalseForUnknownId" "--gtest_also_run_disabled_tests"
 Directory: /Users/danilamalafeev/Documents/New project/build-release
-"OrderBookTest.CancelOrderReturnsFalseForUnknownId" start time: Apr 26 17:55 MSK
+"OrderBookTest.CancelOrderReturnsFalseForUnknownId" start time: Apr 26 21:03 MSK
 Output:
 ----------------------------------------------------------
 Running main() from /Users/danilamalafeev/Documents/New project/build-release/_deps/googletest-src/googletest/src/gtest_main.cc
@@ -185,7 +185,7 @@ Note: Google Test filter = OrderBookTest.CancelOrderReturnsFalseForUnknownId
 Test time =   0.00 sec
 ----------------------------------------------------------
 Test Passed.
-"OrderBookTest.CancelOrderReturnsFalseForUnknownId" end time: Apr 26 17:55 MSK
+"OrderBookTest.CancelOrderReturnsFalseForUnknownId" end time: Apr 26 21:03 MSK
 "OrderBookTest.CancelOrderReturnsFalseForUnknownId" time elapsed: 00:00:00
 ----------------------------------------------------------
 
@@ -193,7 +193,7 @@ Test Passed.
 8/13 Test: OrderBookTest.ExposesBestPricesAndL2Snapshot
 Command: "/Users/danilamalafeev/Documents/New project/build-release/lob_tests" "--gtest_filter=OrderBookTest.ExposesBestPricesAndL2Snapshot" "--gtest_also_run_disabled_tests"
 Directory: /Users/danilamalafeev/Documents/New project/build-release
-"OrderBookTest.ExposesBestPricesAndL2Snapshot" start time: Apr 26 17:55 MSK
+"OrderBookTest.ExposesBestPricesAndL2Snapshot" start time: Apr 26 21:03 MSK
 Output:
 ----------------------------------------------------------
 Running main() from /Users/danilamalafeev/Documents/New project/build-release/_deps/googletest-src/googletest/src/gtest_main.cc
@@ -212,7 +212,7 @@ Note: Google Test filter = OrderBookTest.ExposesBestPricesAndL2Snapshot
 Test time =   0.00 sec
 ----------------------------------------------------------
 Test Passed.
-"OrderBookTest.ExposesBestPricesAndL2Snapshot" end time: Apr 26 17:55 MSK
+"OrderBookTest.ExposesBestPricesAndL2Snapshot" end time: Apr 26 21:03 MSK
 "OrderBookTest.ExposesBestPricesAndL2Snapshot" time elapsed: 00:00:00
 ----------------------------------------------------------
 
@@ -220,7 +220,7 @@ Test Passed.
 9/13 Test: AnalyticsTest.ComputesPnlAndDrawdownFromEquityCurve
 Command: "/Users/danilamalafeev/Documents/New project/build-release/lob_tests" "--gtest_filter=AnalyticsTest.ComputesPnlAndDrawdownFromEquityCurve" "--gtest_also_run_disabled_tests"
 Directory: /Users/danilamalafeev/Documents/New project/build-release
-"AnalyticsTest.ComputesPnlAndDrawdownFromEquityCurve" start time: Apr 26 17:55 MSK
+"AnalyticsTest.ComputesPnlAndDrawdownFromEquityCurve" start time: Apr 26 21:03 MSK
 Output:
 ----------------------------------------------------------
 Running main() from /Users/danilamalafeev/Documents/New project/build-release/_deps/googletest-src/googletest/src/gtest_main.cc
@@ -239,7 +239,7 @@ Note: Google Test filter = AnalyticsTest.ComputesPnlAndDrawdownFromEquityCurve
 Test time =   0.00 sec
 ----------------------------------------------------------
 Test Passed.
-"AnalyticsTest.ComputesPnlAndDrawdownFromEquityCurve" end time: Apr 26 17:55 MSK
+"AnalyticsTest.ComputesPnlAndDrawdownFromEquityCurve" end time: Apr 26 21:03 MSK
 "AnalyticsTest.ComputesPnlAndDrawdownFromEquityCurve" time elapsed: 00:00:00
 ----------------------------------------------------------
 
@@ -247,7 +247,7 @@ Test Passed.
 10/13 Test: CsvParserTest.StreamsMmapEventsWithOneEventLookahead
 Command: "/Users/danilamalafeev/Documents/New project/build-release/lob_tests" "--gtest_filter=CsvParserTest.StreamsMmapEventsWithOneEventLookahead" "--gtest_also_run_disabled_tests"
 Directory: /Users/danilamalafeev/Documents/New project/build-release
-"CsvParserTest.StreamsMmapEventsWithOneEventLookahead" start time: Apr 26 17:55 MSK
+"CsvParserTest.StreamsMmapEventsWithOneEventLookahead" start time: Apr 26 21:03 MSK
 Output:
 ----------------------------------------------------------
 Running main() from /Users/danilamalafeev/Documents/New project/build-release/_deps/googletest-src/googletest/src/gtest_main.cc
@@ -256,17 +256,17 @@ Note: Google Test filter = CsvParserTest.StreamsMmapEventsWithOneEventLookahead
 [----------] Global test environment set-up.
 [----------] 1 test from CsvParserTest
 [ RUN      ] CsvParserTest.StreamsMmapEventsWithOneEventLookahead
-[       OK ] CsvParserTest.StreamsMmapEventsWithOneEventLookahead (0 ms)
-[----------] 1 test from CsvParserTest (0 ms total)
+[       OK ] CsvParserTest.StreamsMmapEventsWithOneEventLookahead (1 ms)
+[----------] 1 test from CsvParserTest (1 ms total)
 
 [----------] Global test environment tear-down
-[==========] 1 test from 1 test suite ran. (0 ms total)
+[==========] 1 test from 1 test suite ran. (1 ms total)
 [  PASSED  ] 1 test.
 <end of output>
 Test time =   0.00 sec
 ----------------------------------------------------------
 Test Passed.
-"CsvParserTest.StreamsMmapEventsWithOneEventLookahead" end time: Apr 26 17:55 MSK
+"CsvParserTest.StreamsMmapEventsWithOneEventLookahead" end time: Apr 26 21:03 MSK
 "CsvParserTest.StreamsMmapEventsWithOneEventLookahead" time elapsed: 00:00:00
 ----------------------------------------------------------
 
@@ -274,7 +274,7 @@ Test Passed.
 11/13 Test: EventMergerTest.MergesSmallStreamSetWithFastPath
 Command: "/Users/danilamalafeev/Documents/New project/build-release/lob_tests" "--gtest_filter=EventMergerTest.MergesSmallStreamSetWithFastPath" "--gtest_also_run_disabled_tests"
 Directory: /Users/danilamalafeev/Documents/New project/build-release
-"EventMergerTest.MergesSmallStreamSetWithFastPath" start time: Apr 26 17:55 MSK
+"EventMergerTest.MergesSmallStreamSetWithFastPath" start time: Apr 26 21:03 MSK
 Output:
 ----------------------------------------------------------
 Running main() from /Users/danilamalafeev/Documents/New project/build-release/_deps/googletest-src/googletest/src/gtest_main.cc
@@ -293,7 +293,7 @@ Note: Google Test filter = EventMergerTest.MergesSmallStreamSetWithFastPath
 Test time =   0.00 sec
 ----------------------------------------------------------
 Test Passed.
-"EventMergerTest.MergesSmallStreamSetWithFastPath" end time: Apr 26 17:55 MSK
+"EventMergerTest.MergesSmallStreamSetWithFastPath" end time: Apr 26 21:03 MSK
 "EventMergerTest.MergesSmallStreamSetWithFastPath" time elapsed: 00:00:00
 ----------------------------------------------------------
 
@@ -301,7 +301,7 @@ Test Passed.
 12/13 Test: EventMergerTest.MergesLargeStreamSetWithHeapPath
 Command: "/Users/danilamalafeev/Documents/New project/build-release/lob_tests" "--gtest_filter=EventMergerTest.MergesLargeStreamSetWithHeapPath" "--gtest_also_run_disabled_tests"
 Directory: /Users/danilamalafeev/Documents/New project/build-release
-"EventMergerTest.MergesLargeStreamSetWithHeapPath" start time: Apr 26 17:55 MSK
+"EventMergerTest.MergesLargeStreamSetWithHeapPath" start time: Apr 26 21:03 MSK
 Output:
 ----------------------------------------------------------
 Running main() from /Users/danilamalafeev/Documents/New project/build-release/_deps/googletest-src/googletest/src/gtest_main.cc
@@ -320,7 +320,7 @@ Note: Google Test filter = EventMergerTest.MergesLargeStreamSetWithHeapPath
 Test time =   0.00 sec
 ----------------------------------------------------------
 Test Passed.
-"EventMergerTest.MergesLargeStreamSetWithHeapPath" end time: Apr 26 17:55 MSK
+"EventMergerTest.MergesLargeStreamSetWithHeapPath" end time: Apr 26 21:03 MSK
 "EventMergerTest.MergesLargeStreamSetWithHeapPath" time elapsed: 00:00:00
 ----------------------------------------------------------
 
@@ -328,7 +328,7 @@ Test Passed.
 13/13 Test: MultiAssetBacktestEngineTest.RoutesMergedEventsToAssetBooksAndStrategy
 Command: "/Users/danilamalafeev/Documents/New project/build-release/lob_tests" "--gtest_filter=MultiAssetBacktestEngineTest.RoutesMergedEventsToAssetBooksAndStrategy" "--gtest_also_run_disabled_tests"
 Directory: /Users/danilamalafeev/Documents/New project/build-release
-"MultiAssetBacktestEngineTest.RoutesMergedEventsToAssetBooksAndStrategy" start time: Apr 26 17:55 MSK
+"MultiAssetBacktestEngineTest.RoutesMergedEventsToAssetBooksAndStrategy" start time: Apr 26 21:03 MSK
 Output:
 ----------------------------------------------------------
 Running main() from /Users/danilamalafeev/Documents/New project/build-release/_deps/googletest-src/googletest/src/gtest_main.cc
@@ -347,8 +347,8 @@ Note: Google Test filter = MultiAssetBacktestEngineTest.RoutesMergedEventsToAsse
 Test time =   0.00 sec
 ----------------------------------------------------------
 Test Passed.
-"MultiAssetBacktestEngineTest.RoutesMergedEventsToAssetBooksAndStrategy" end time: Apr 26 17:55 MSK
+"MultiAssetBacktestEngineTest.RoutesMergedEventsToAssetBooksAndStrategy" end time: Apr 26 21:03 MSK
 "MultiAssetBacktestEngineTest.RoutesMergedEventsToAssetBooksAndStrategy" time elapsed: 00:00:00
 ----------------------------------------------------------
 
-End testing: Apr 26 17:55 MSK
+End testing: Apr 26 21:03 MSK

@@ -26,12 +26,24 @@ FetchContent_Declare(
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
 
+find_package(pybind11 CONFIG QUIET)
+if(NOT pybind11_FOUND)
+    FetchContent_Declare(
+        pybind11
+        URL https://github.com/pybind/pybind11/archive/refs/tags/v2.13.6.zip
+        DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+    )
+endif()
+
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 set(BENCHMARK_ENABLE_GTEST_TESTS OFF CACHE BOOL "" FORCE)
 set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "" FORCE)
 set(BENCHMARK_ENABLE_INSTALL OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 FetchContent_MakeAvailable(googlebenchmark)
+if(NOT pybind11_FOUND)
+    FetchContent_MakeAvailable(pybind11)
+endif()
 
 add_library(lob_core STATIC
     src/backtest_engine.cpp
@@ -44,6 +56,22 @@ target_include_directories(
         ${PROJECT_SOURCE_DIR}/include
 )
 target_compile_features(lob_core PUBLIC cxx_std_20)
+set_target_properties(lob_core PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+pybind11_add_module(yabe
+    src/bindings.cpp
+)
+target_link_libraries(
+    yabe
+    PRIVATE
+        lob_core
+)
+target_compile_features(yabe PRIVATE cxx_std_20)
+if(WIN32)
+    set_target_properties(yabe PROPERTIES SUFFIX ".pyd")
+else()
+    set_target_properties(yabe PROPERTIES SUFFIX ".so")
+endif()
 
 enable_testing()
 

@@ -1,21 +1,27 @@
 [
 {
   "directory": "/Users/danilamalafeev/Documents/New project/build-release",
-  "command": "/usr/bin/c++  -I\"/Users/danilamalafeev/Documents/New project/include\" -O3 -DNDEBUG -std=c++20 -arch arm64 -o CMakeFiles/lob_core.dir/src/backtest_engine.cpp.o -c \"/Users/danilamalafeev/Documents/New project/src/backtest_engine.cpp\"",
+  "command": "/usr/bin/c++  -I\"/Users/danilamalafeev/Documents/New project/include\" -O3 -DNDEBUG -std=c++20 -arch arm64 -fPIC -o CMakeFiles/lob_core.dir/src/backtest_engine.cpp.o -c \"/Users/danilamalafeev/Documents/New project/src/backtest_engine.cpp\"",
   "file": "/Users/danilamalafeev/Documents/New project/src/backtest_engine.cpp",
   "output": "CMakeFiles/lob_core.dir/src/backtest_engine.cpp.o"
 },
 {
   "directory": "/Users/danilamalafeev/Documents/New project/build-release",
-  "command": "/usr/bin/c++  -I\"/Users/danilamalafeev/Documents/New project/include\" -O3 -DNDEBUG -std=c++20 -arch arm64 -o CMakeFiles/lob_core.dir/src/csv_parser.cpp.o -c \"/Users/danilamalafeev/Documents/New project/src/csv_parser.cpp\"",
+  "command": "/usr/bin/c++  -I\"/Users/danilamalafeev/Documents/New project/include\" -O3 -DNDEBUG -std=c++20 -arch arm64 -fPIC -o CMakeFiles/lob_core.dir/src/csv_parser.cpp.o -c \"/Users/danilamalafeev/Documents/New project/src/csv_parser.cpp\"",
   "file": "/Users/danilamalafeev/Documents/New project/src/csv_parser.cpp",
   "output": "CMakeFiles/lob_core.dir/src/csv_parser.cpp.o"
 },
 {
   "directory": "/Users/danilamalafeev/Documents/New project/build-release",
-  "command": "/usr/bin/c++  -I\"/Users/danilamalafeev/Documents/New project/include\" -O3 -DNDEBUG -std=c++20 -arch arm64 -o CMakeFiles/lob_core.dir/src/order_book.cpp.o -c \"/Users/danilamalafeev/Documents/New project/src/order_book.cpp\"",
+  "command": "/usr/bin/c++  -I\"/Users/danilamalafeev/Documents/New project/include\" -O3 -DNDEBUG -std=c++20 -arch arm64 -fPIC -o CMakeFiles/lob_core.dir/src/order_book.cpp.o -c \"/Users/danilamalafeev/Documents/New project/src/order_book.cpp\"",
   "file": "/Users/danilamalafeev/Documents/New project/src/order_book.cpp",
   "output": "CMakeFiles/lob_core.dir/src/order_book.cpp.o"
+},
+{
+  "directory": "/Users/danilamalafeev/Documents/New project/build-release",
+  "command": "/usr/bin/c++ -Dyabe_EXPORTS -I\"/Users/danilamalafeev/Documents/New project/include\" -isystem \"/Users/danilamalafeev/Documents/New project/build-release/_deps/pybind11-src/include\" -isystem /opt/anaconda3/include/python3.12 -O3 -DNDEBUG -std=c++20 -arch arm64 -fPIC -fvisibility=hidden -flto -o CMakeFiles/yabe.dir/src/bindings.cpp.o -c \"/Users/danilamalafeev/Documents/New project/src/bindings.cpp\"",
+  "file": "/Users/danilamalafeev/Documents/New project/src/bindings.cpp",
+  "output": "CMakeFiles/yabe.dir/src/bindings.cpp.o"
 },
 {
   "directory": "/Users/danilamalafeev/Documents/New project/build-release",

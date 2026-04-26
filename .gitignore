@@ -5,3 +5,4 @@ trace_log.csv
 __pycache__/
 backtest_trace.html
 *.csv
+build-release/

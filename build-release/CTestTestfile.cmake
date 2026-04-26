@@ -7,3 +7,4 @@
 include("/Users/danilamalafeev/Documents/New project/build-release/lob_tests[1]_include.cmake")
 subdirs("_deps/googletest-build")
 subdirs("_deps/googlebenchmark-build")
+subdirs("_deps/pybind11-build")

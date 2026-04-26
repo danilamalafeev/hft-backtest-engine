@@ -363,6 +363,10 @@ FETCHCONTENT_SOURCE_DIR_GOOGLEBENCHMARK:PATH=
 // for googletest
 FETCHCONTENT_SOURCE_DIR_GOOGLETEST:PATH=
 
+//When not empty, overrides where to find pre-populated content
+// for pybind11
+FETCHCONTENT_SOURCE_DIR_PYBIND11:PATH=
+
 //Enables UPDATE_DISCONNECTED behavior for all content population
 FETCHCONTENT_UPDATES_DISCONNECTED:BOOL=OFF
 
@@ -371,6 +375,9 @@ FETCHCONTENT_UPDATES_DISCONNECTED_GOOGLEBENCHMARK:BOOL=OFF
 
 //Enables UPDATE_DISCONNECTED behavior just for population of googletest
 FETCHCONTENT_UPDATES_DISCONNECTED_GOOGLETEST:BOOL=OFF
+
+//Enables UPDATE_DISCONNECTED behavior just for population of pybind11
+FETCHCONTENT_UPDATES_DISCONNECTED_PYBIND11:BOOL=OFF
 
 //Git command line client
 GIT_EXECUTABLE:FILEPATH=/opt/homebrew/bin/git
@@ -382,6 +389,48 @@ GTEST_HAS_ABSL:BOOL=OFF
 //Enable installation of googletest. (Projects embedding googletest
 // may want to turn this OFF.)
 INSTALL_GTEST:BOOL=ON
+
+//To enforce that a handle_type_name<> specialization exists
+PYBIND11_DISABLE_HANDLE_TYPE_NAME_DEFAULT_IMPLEMENTATION:BOOL=OFF
+
+//Force new FindPython
+PYBIND11_FINDPYTHON:BOOL=OFF
+
+//Install pybind11 header files?
+PYBIND11_INSTALL:BOOL=OFF
+
+//Override the ABI version, may be used to enable the unstable
+// ABI.
+PYBIND11_INTERNALS_VERSION:STRING=
+
+//Disable search for Python
+PYBIND11_NOPYTHON:BOOL=OFF
+
+//Disable NumPy 2 support to avoid changes to previous pybind11
+// versions.
+PYBIND11_NUMPY_1_ONLY:BOOL=OFF
+
+//Overwrite cached values read from Python library (classic search).
+// Turn off if cross-compiling and manually setting these values.
+PYBIND11_PYTHONLIBS_OVERWRITE:BOOL=ON
+
+//Python version to use for compiling modules
+PYBIND11_PYTHON_VERSION:STRING=
+
+//Use simpler GIL management logic that does not support disassociation
+PYBIND11_SIMPLE_GIL_MANAGEMENT:BOOL=OFF
+
+//Build pybind11 test suite?
+PYBIND11_TEST:BOOL=OFF
+
+//Respect CMAKE_CROSSCOMPILING
+PYBIND11_USE_CROSSCOMPILING:BOOL=OFF
+
+//Path to a program.
+PYTHON_EXECUTABLE:FILEPATH=/opt/anaconda3/python.app/Contents/MacOS/python
+
+//Path to a library.
+PYTHON_LIBRARY:FILEPATH=/opt/anaconda3/lib/libpython3.12.dylib
 
 //Value Computed by CMake
 benchmark_BINARY_DIR:STATIC=/Users/danilamalafeev/Documents/New project/build-release/_deps/googlebenchmark-build
@@ -446,6 +495,18 @@ lob_backtester_IS_TOP_LEVEL:STATIC=ON
 
 //Value Computed by CMake
 lob_backtester_SOURCE_DIR:STATIC=/Users/danilamalafeev/Documents/New project
+
+//Value Computed by CMake
+pybind11_BINARY_DIR:STATIC=/Users/danilamalafeev/Documents/New project/build-release/_deps/pybind11-build
+
+//The directory containing a CMake configuration file for pybind11.
+pybind11_DIR:PATH=pybind11_DIR-NOTFOUND
+
+//Value Computed by CMake
+pybind11_IS_TOP_LEVEL:STATIC=OFF
+
+//Value Computed by CMake
+pybind11_SOURCE_DIR:STATIC=/Users/danilamalafeev/Documents/New project/build-release/_deps/pybind11-src
 
 
 ########################
@@ -588,7 +649,7 @@ CMAKE_MODULE_LINKER_FLAGS_RELWITHDEBINFO-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: CMAKE_NM
 CMAKE_NM-ADVANCED:INTERNAL=1
 //number of local generators
-CMAKE_NUMBER_OF_MAKEFILES:INTERNAL=6
+CMAKE_NUMBER_OF_MAKEFILES:INTERNAL=7
 //ADVANCED property for variable: CMAKE_OBJCOPY
 CMAKE_OBJCOPY-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: CMAKE_OBJDUMP
@@ -647,10 +708,16 @@ COMPILE_HAVE_STEADY_CLOCK:INTERNAL=TRUE
 COMPILE_HAVE_THREAD_SAFETY_ATTRIBUTES:INTERNAL=TRUE
 //Details about finding Git
 FIND_PACKAGE_MESSAGE_DETAILS_Git:INTERNAL=[/opt/homebrew/bin/git][v2.54.0()]
+//Details about finding PYTHON
+FIND_PACKAGE_MESSAGE_DETAILS_PYTHON:INTERNAL=/opt/anaconda3/python.app/Contents/MacOS/python3.12.7
+//Details about finding PythonInterp
+FIND_PACKAGE_MESSAGE_DETAILS_PythonInterp:INTERNAL=[/opt/anaconda3/python.app/Contents/MacOS/python][v3.12.7(3.7)]
 //Details about finding Threads
 FIND_PACKAGE_MESSAGE_DETAILS_Threads:INTERNAL=[TRUE][v()]
 //ADVANCED property for variable: GIT_EXECUTABLE
 GIT_EXECUTABLE-ADVANCED:INTERNAL=1
+//Test HAS_FLTO_THIN
+HAS_FLTO_THIN:INTERNAL=1
 //Test HAVE_CXX_FLAG_COVERAGE
 HAVE_CXX_FLAG_COVERAGE:INTERNAL=1
 //Test HAVE_CXX_FLAG_FSTRICT_ALIASING
@@ -689,6 +756,21 @@ HAVE_CXX_FLAG_WSUGGEST_OVERRIDE:INTERNAL=1
 HAVE_CXX_FLAG_WTHREAD_SAFETY:INTERNAL=1
 //Have library rt
 HAVE_LIB_RT:INTERNAL=
+PYBIND11_INCLUDE_DIR:INTERNAL=/Users/danilamalafeev/Documents/New project/build-release/_deps/pybind11-src/include
+//ADVANCED property for variable: PYTHON_EXECUTABLE
+PYTHON_EXECUTABLE-ADVANCED:INTERNAL=1
+PYTHON_INCLUDE_DIRS:INTERNAL=/opt/anaconda3/include/python3.12
+PYTHON_IS_DEBUG:INTERNAL=0
+PYTHON_LIBRARIES:INTERNAL=/opt/anaconda3/lib/libpython3.12.dylib
+//ADVANCED property for variable: PYTHON_LIBRARY
+PYTHON_LIBRARY-ADVANCED:INTERNAL=1
+PYTHON_MODULE_DEBUG_POSTFIX:INTERNAL=
+PYTHON_MODULE_EXTENSION:INTERNAL=.cpython-312-darwin.so
+PYTHON_MODULE_PREFIX:INTERNAL=
+PYTHON_VERSION:INTERNAL=3.12.7
+PYTHON_VERSION_MAJOR:INTERNAL=3
+PYTHON_VERSION_MINOR:INTERNAL=12
+Python_ADDITIONAL_VERSIONS:INTERNAL=3.12;3.11;3.10;3.9;3.8;3.7
 //Result of try_run()
 RUN_HAVE_POSIX_REGEX:INTERNAL=0
 //Result of try_run()
@@ -699,6 +781,8 @@ RUN_HAVE_STEADY_CLOCK:INTERNAL=0
 RUN_HAVE_THREAD_SAFETY_ATTRIBUTES:INTERNAL=0
 //CMAKE_INSTALL_PREFIX during last run
 _GNUInstallDirs_LAST_CMAKE_INSTALL_PREFIX:INTERNAL=/usr/local
+_PYBIND11_CROSSCOMPILING:INTERNAL=OFF
+_Python:INTERNAL=PYTHON
 cmake_package_name:INTERNAL=GTest
 generated_dir:INTERNAL=/Users/danilamalafeev/Documents/New project/build-release/_deps/googletest-build/googletest/generated
 //ADVANCED property for variable: gmock_build_tests
@@ -713,5 +797,11 @@ gtest_disable_pthreads-ADVANCED:INTERNAL=1
 gtest_force_shared_crt-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: gtest_hide_internal_symbols
 gtest_hide_internal_symbols-ADVANCED:INTERNAL=1
+//True if pybind11 and all required components found on the system
+pybind11_FOUND:INTERNAL=TRUE
+//Directory where pybind11 headers are located
+pybind11_INCLUDE_DIR:INTERNAL=/Users/danilamalafeev/Documents/New project/build-release/_deps/pybind11-src/include
+//Directories where pybind11 and possibly Python headers are located
+pybind11_INCLUDE_DIRS:INTERNAL=/Users/danilamalafeev/Documents/New project/build-release/_deps/pybind11-src/include;/opt/anaconda3/include/python3.12
 targets_export_name:INTERNAL=GTestTargets
 

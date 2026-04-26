@@ -28,6 +28,11 @@ set(CMAKE_MAKEFILE_DEPENDS
   "_deps/googletest-src/googletest/cmake/gtest.pc.in"
   "_deps/googletest-src/googletest/cmake/gtest_main.pc.in"
   "_deps/googletest-src/googletest/cmake/internal_utils.cmake"
+  "_deps/pybind11-src/CMakeLists.txt"
+  "_deps/pybind11-src/tools/FindPythonLibsNew.cmake"
+  "_deps/pybind11-src/tools/JoinPaths.cmake"
+  "_deps/pybind11-src/tools/pybind11Common.cmake"
+  "_deps/pybind11-src/tools/pybind11Tools.cmake"
   "/opt/homebrew/share/cmake/Modules/BasicConfigVersion-AnyNewerVersion.cmake.in"
   "/opt/homebrew/share/cmake/Modules/BasicConfigVersion-SameMajorVersion.cmake.in"
   "/opt/homebrew/share/cmake/Modules/CMakeCInformation.cmake"
@@ -39,6 +44,7 @@ set(CMAKE_MAKEFILE_DEPENDS
   "/opt/homebrew/share/cmake/Modules/CMakeInitializeConfigs.cmake"
   "/opt/homebrew/share/cmake/Modules/CMakeLanguageInformation.cmake"
   "/opt/homebrew/share/cmake/Modules/CMakePackageConfigHelpers.cmake"
+  "/opt/homebrew/share/cmake/Modules/CMakeParseArguments.cmake"
   "/opt/homebrew/share/cmake/Modules/CMakeSystemSpecificInformation.cmake"
   "/opt/homebrew/share/cmake/Modules/CMakeSystemSpecificInitialize.cmake"
   "/opt/homebrew/share/cmake/Modules/CheckCSourceCompiles.cmake"
@@ -58,6 +64,7 @@ set(CMAKE_MAKEFILE_DEPENDS
   "/opt/homebrew/share/cmake/Modules/FindGit.cmake"
   "/opt/homebrew/share/cmake/Modules/FindPackageHandleStandardArgs.cmake"
   "/opt/homebrew/share/cmake/Modules/FindPackageMessage.cmake"
+  "/opt/homebrew/share/cmake/Modules/FindPythonInterp.cmake"
   "/opt/homebrew/share/cmake/Modules/FindThreads.cmake"
   "/opt/homebrew/share/cmake/Modules/GNUInstallDirs.cmake"
   "/opt/homebrew/share/cmake/Modules/GoogleTest.cmake"
@@ -94,6 +101,7 @@ set(CMAKE_MAKEFILE_OUTPUTS
 set(CMAKE_MAKEFILE_PRODUCTS
   "_deps/googletest-subbuild/CMakeLists.txt"
   "_deps/googlebenchmark-subbuild/CMakeLists.txt"
+  "_deps/pybind11-subbuild/CMakeLists.txt"
   "CMakeFiles/CMakeDirectoryInformation.cmake"
   "_deps/googletest-build/CMakeFiles/CMakeDirectoryInformation.cmake"
   "_deps/googletest-build/googletest/generated/gmock.pc"
@@ -110,11 +118,13 @@ set(CMAKE_MAKEFILE_PRODUCTS
   "_deps/googlebenchmark-build/benchmark.pc"
   "_deps/googlebenchmark-build/benchmark_main.pc"
   "_deps/googlebenchmark-build/src/CMakeFiles/CMakeDirectoryInformation.cmake"
+  "_deps/pybind11-build/CMakeFiles/CMakeDirectoryInformation.cmake"
   )
 
 # Dependency information for all targets:
 set(CMAKE_DEPEND_INFO_FILES
   "CMakeFiles/lob_core.dir/DependInfo.cmake"
+  "CMakeFiles/yabe.dir/DependInfo.cmake"
   "CMakeFiles/lob_tests.dir/DependInfo.cmake"
   "CMakeFiles/lob_benchmarks.dir/DependInfo.cmake"
   "CMakeFiles/lob_backtest.dir/DependInfo.cmake"

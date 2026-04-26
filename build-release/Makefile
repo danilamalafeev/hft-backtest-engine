@@ -185,6 +185,19 @@ lob_core/fast:
 .PHONY : lob_core/fast
 
 #=============================================================================
+# Target rules for targets named yabe
+
+# Build rule for target.
+yabe: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 yabe
+.PHONY : yabe
+
+# fast build rule for target.
+yabe/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/yabe.dir/build.make CMakeFiles/yabe.dir/build
+.PHONY : yabe/fast
+
+#=============================================================================
 # Target rules for targets named lob_tests
 
 # Build rule for target.
@@ -362,6 +375,30 @@ src/backtest_engine.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/lob_core.dir/build.make CMakeFiles/lob_core.dir/src/backtest_engine.cpp.s
 .PHONY : src/backtest_engine.cpp.s
 
+src/bindings.o: src/bindings.cpp.o
+.PHONY : src/bindings.o
+
+# target to build an object file
+src/bindings.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/yabe.dir/build.make CMakeFiles/yabe.dir/src/bindings.cpp.o
+.PHONY : src/bindings.cpp.o
+
+src/bindings.i: src/bindings.cpp.i
+.PHONY : src/bindings.i
+
+# target to preprocess a source file
+src/bindings.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/yabe.dir/build.make CMakeFiles/yabe.dir/src/bindings.cpp.i
+.PHONY : src/bindings.cpp.i
+
+src/bindings.s: src/bindings.cpp.s
+.PHONY : src/bindings.s
+
+# target to generate assembly for a file
+src/bindings.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/yabe.dir/build.make CMakeFiles/yabe.dir/src/bindings.cpp.s
+.PHONY : src/bindings.cpp.s
+
 src/csv_parser.o: src/csv_parser.cpp.o
 .PHONY : src/csv_parser.o
 
@@ -482,12 +519,16 @@ help:
 	@echo "... lob_benchmarks"
 	@echo "... lob_core"
 	@echo "... lob_tests"
+	@echo "... yabe"
 	@echo "... benchmarks/bench_order_book.o"
 	@echo "... benchmarks/bench_order_book.i"
 	@echo "... benchmarks/bench_order_book.s"
 	@echo "... src/backtest_engine.o"
 	@echo "... src/backtest_engine.i"
 	@echo "... src/backtest_engine.s"
+	@echo "... src/bindings.o"
+	@echo "... src/bindings.i"
+	@echo "... src/bindings.s"
 	@echo "... src/csv_parser.o"
 	@echo "... src/csv_parser.i"
 	@echo "... src/csv_parser.s"
