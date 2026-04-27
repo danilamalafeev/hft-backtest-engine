@@ -5,4 +5,7 @@ trace_log.csv
 __pycache__/
 backtest_trace.html
 *.csv
+*.csv.gz
+data/tardis/
+results/*.csv
 build-release/

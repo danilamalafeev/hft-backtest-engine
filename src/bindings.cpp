@@ -106,6 +106,59 @@ public:
     double inventory_risk() const noexcept { return result_.inventory_risk; }
     const std::vector<double>& balances() const noexcept { return result_.balances; }
     const std::vector<lob::AssetID>& last_cycle() const noexcept { return result_.last_cycle; }
+    std::size_t cycle_snapshot_count() const noexcept { return result_.cycle_snapshots.size(); }
+
+    [[nodiscard]] py::dict get_cycle_snapshots_dataframe() const {
+        py::ssize_t row_count = 0;
+        for (const lob::GraphArbitrageEngine::CycleSnapshot& snapshot : result_.cycle_snapshots) {
+            row_count += static_cast<py::ssize_t>(snapshot.leg_count);
+        }
+
+        py::array_t<std::uint64_t> snapshot_ids {row_count};
+        py::array_t<std::uint64_t> timestamps {row_count};
+        py::array_t<std::uint32_t> leg_indices {row_count};
+        py::array_t<std::uint32_t> from_assets {row_count};
+        py::array_t<std::uint32_t> to_assets {row_count};
+        py::array_t<double> obis {row_count};
+        py::array_t<double> spreads_bps {row_count};
+        py::array_t<std::uint8_t> executed {row_count};
+
+        auto* snapshot_id_ptr = snapshot_ids.mutable_data();
+        auto* timestamp_ptr = timestamps.mutable_data();
+        auto* leg_index_ptr = leg_indices.mutable_data();
+        auto* from_asset_ptr = from_assets.mutable_data();
+        auto* to_asset_ptr = to_assets.mutable_data();
+        auto* obi_ptr = obis.mutable_data();
+        auto* spread_bps_ptr = spreads_bps.mutable_data();
+        auto* executed_ptr = executed.mutable_data();
+
+        py::ssize_t row = 0;
+        for (std::size_t snapshot_index = 0U; snapshot_index < result_.cycle_snapshots.size(); ++snapshot_index) {
+            const lob::GraphArbitrageEngine::CycleSnapshot& snapshot = result_.cycle_snapshots[snapshot_index];
+            for (std::size_t leg = 0U; leg < snapshot.leg_count; ++leg) {
+                snapshot_id_ptr[row] = static_cast<std::uint64_t>(snapshot_index);
+                timestamp_ptr[row] = snapshot.timestamp_ns;
+                leg_index_ptr[row] = static_cast<std::uint32_t>(leg);
+                from_asset_ptr[row] = static_cast<std::uint32_t>(snapshot.cycle_path[leg]);
+                to_asset_ptr[row] = static_cast<std::uint32_t>(snapshot.cycle_path[leg + 1U]);
+                obi_ptr[row] = snapshot.leg_obis[leg];
+                spread_bps_ptr[row] = snapshot.leg_spreads_bps[leg];
+                executed_ptr[row] = snapshot.executed ? 1U : 0U;
+                ++row;
+            }
+        }
+
+        py::dict frame {};
+        frame["snapshot_id"] = std::move(snapshot_ids);
+        frame["timestamp_ns"] = std::move(timestamps);
+        frame["leg_index"] = std::move(leg_indices);
+        frame["from_asset"] = std::move(from_assets);
+        frame["to_asset"] = std::move(to_assets);
+        frame["obi"] = std::move(obis);
+        frame["spread_bps"] = std::move(spreads_bps);
+        frame["executed"] = std::move(executed);
+        return frame;
+    }
 
 private:
     lob::GraphArbitrageEngine::Result result_ {};
@@ -118,9 +171,23 @@ public:
         std::uint64_t latency_ns,
         std::uint64_t intra_leg_latency_ns,
         double taker_fee_bps,
-        double max_cycle_notional_usdt
+        double max_cycle_notional_usdt,
+        double max_adverse_obi,
+        double max_spread_bps,
+        double min_depth_usdt,
+        double min_cycle_edge_bps
     )
-        : engine_(initial_usdt, latency_ns, intra_leg_latency_ns, taker_fee_bps, max_cycle_notional_usdt) {}
+        : engine_(lob::GraphArbitrageEngine::Config {
+              .initial_usdt = initial_usdt,
+              .latency_ns = latency_ns,
+              .intra_leg_latency_ns = intra_leg_latency_ns,
+              .taker_fee_bps = taker_fee_bps,
+              .max_cycle_notional_usdt = max_cycle_notional_usdt,
+              .max_adverse_obi = max_adverse_obi,
+              .max_spread_bps = max_spread_bps,
+              .min_depth_usdt = min_depth_usdt,
+              .min_cycle_edge_bps = min_cycle_edge_bps,
+          }) {}
 
     lob::AssetID add_pair(const std::string& base_asset, const std::string& quote_asset, const std::string& csv_file_path) {
         return engine_.add_pair(base_asset, quote_asset, csv_file_path);
@@ -275,16 +342,22 @@ PYBIND11_MODULE(yabe, module) {
         .def_property_readonly("final_nav", &PyGraphResult::final_nav)
         .def_property_readonly("inventory_risk", &PyGraphResult::inventory_risk)
         .def_property_readonly("balances", &PyGraphResult::balances)
-        .def_property_readonly("last_cycle", &PyGraphResult::last_cycle);
+        .def_property_readonly("last_cycle", &PyGraphResult::last_cycle)
+        .def_property_readonly("cycle_snapshot_count", &PyGraphResult::cycle_snapshot_count)
+        .def("get_cycle_snapshots_dataframe", &PyGraphResult::get_cycle_snapshots_dataframe);
 
     py::class_<PyGraphEngine>(module, "GraphEngine")
         .def(
-            py::init<double, std::uint64_t, std::uint64_t, double, double>(),
+            py::init<double, std::uint64_t, std::uint64_t, double, double, double, double, double, double>(),
             py::arg("initial_usdt") = 100'000'000.0,
             py::arg("latency_ns") = 0,
             py::arg("intra_leg_latency_ns") = 75,
             py::arg("taker_fee_bps") = 0.0,
-            py::arg("max_cycle_notional_usdt") = 1'000.0
+            py::arg("max_cycle_notional_usdt") = 1'000.0,
+            py::arg("max_adverse_obi") = 1.0,
+            py::arg("max_spread_bps") = 1'000.0,
+            py::arg("min_depth_usdt") = 0.0,
+            py::arg("min_cycle_edge_bps") = 0.0
         )
         .def("add_pair", &PyGraphEngine::add_pair, py::arg("base_asset"), py::arg("quote_asset"), py::arg("csv_file_path"))
         .def_property_readonly("assets", &PyGraphEngine::assets)

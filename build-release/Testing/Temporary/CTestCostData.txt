@@ -1,14 +1,14 @@
-OrderBookTest.InitializesSuccessfully 39 0.000107286
-OrderBookTest.ProcessOrderRestsBuyOrderWhenBookDoesNotCross 39 6.74444e-05
-OrderBookTest.ProcessOrderRestsSellOrderWhenBookDoesNotCross 39 6.8625e-05
-OrderBookTest.ProcessOrderMatchesCrossSpreadUsingPriceTimePriority 39 6.13013e-05
-OrderBookTest.ProcessOrderRestsResidualQuantityAfterPartialIncomingFill 39 7.22489e-05
-OrderBookTest.CancelOrderRemovesEmptyBidPriceLevelAndIndexEntry 39 6.32992e-05
-OrderBookTest.CancelOrderReturnsFalseForUnknownId 39 8.24893e-05
-AnalyticsTest.ComputesPnlAndDrawdownFromEquityCurve 35 7.52107e-05
-OrderBookTest.ExposesBestPricesAndL2Snapshot 33 0.000144021
-EventMergerTest.MergesSmallStreamSetWithFastPath 25 9.54383e-05
-EventMergerTest.MergesLargeStreamSetWithHeapPath 25 8.96967e-05
-MultiAssetBacktestEngineTest.RoutesMergedEventsToAssetBooksAndStrategy 24 0.00013133
-CsvParserTest.StreamsMmapEventsWithOneEventLookahead 22 0.000168248
+OrderBookTest.InitializesSuccessfully 42 0.000137864
+OrderBookTest.ProcessOrderRestsBuyOrderWhenBookDoesNotCross 42 6.45387e-05
+OrderBookTest.ProcessOrderRestsSellOrderWhenBookDoesNotCross 42 5.87351e-05
+OrderBookTest.ProcessOrderMatchesCrossSpreadUsingPriceTimePriority 42 6.28175e-05
+OrderBookTest.ProcessOrderRestsResidualQuantityAfterPartialIncomingFill 42 6.29742e-05
+OrderBookTest.CancelOrderRemovesEmptyBidPriceLevelAndIndexEntry 42 7.3375e-05
+OrderBookTest.CancelOrderReturnsFalseForUnknownId 42 6.15843e-05
+AnalyticsTest.ComputesPnlAndDrawdownFromEquityCurve 38 6.0068e-05
+OrderBookTest.ExposesBestPricesAndL2Snapshot 36 6.8044e-05
+EventMergerTest.MergesSmallStreamSetWithFastPath 28 9.68319e-05
+EventMergerTest.MergesLargeStreamSetWithHeapPath 28 0.000124475
+MultiAssetBacktestEngineTest.RoutesMergedEventsToAssetBooksAndStrategy 27 0.000137256
+CsvParserTest.StreamsMmapEventsWithOneEventLookahead 25 0.000123932
 ---

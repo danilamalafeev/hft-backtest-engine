@@ -21,6 +21,20 @@ namespace lob {
 
 class GraphArbitrageEngine {
 public:
+    static constexpr std::size_t kMaxGraphLegs = 16U;
+
+    struct Config {
+        double initial_usdt {100'000'000.0};
+        std::uint64_t latency_ns {0U};
+        std::uint64_t intra_leg_latency_ns {75U};
+        double taker_fee_bps {0.0};
+        double max_cycle_notional_usdt {1'000.0};
+        double max_adverse_obi {1.0};
+        double max_spread_bps {1'000.0};
+        double min_depth_usdt {0.0};
+        double min_cycle_edge_bps {0.0};
+    };
+
     struct PairConfig {
         std::string base_asset {};
         std::string quote_asset {};
@@ -34,6 +48,18 @@ public:
         double bid_qty {};
         double ask_price {};
         double ask_qty {};
+        double obi {};
+        double micro_price {};
+        double spread_bps {};
+    };
+
+    struct CycleSnapshot {
+        std::uint64_t timestamp_ns {};
+        std::uint8_t leg_count {};
+        std::array<AssetID, kMaxGraphLegs + 1U> cycle_path {};
+        std::array<double, kMaxGraphLegs> leg_obis {};
+        std::array<double, kMaxGraphLegs> leg_spreads_bps {};
+        bool executed {};
     };
 
     struct Result {
@@ -48,20 +74,29 @@ public:
         double inventory_risk {};
         std::vector<double> balances {};
         std::vector<AssetID> last_cycle {};
+        std::vector<CycleSnapshot> cycle_snapshots {};
     };
 
-    explicit GraphArbitrageEngine(
-        double initial_usdt = 100'000'000.0,
-        std::uint64_t latency_ns = 0U,
-        std::uint64_t intra_leg_latency_ns = 75U,
-        double taker_fee_bps = 0.0,
-        double max_cycle_notional_usdt = 1'000.0
+    GraphArbitrageEngine()
+        : config_(Config {}) {}
+
+    explicit GraphArbitrageEngine(Config config)
+        : config_(config) {}
+
+    GraphArbitrageEngine(
+        double initial_usdt,
+        std::uint64_t latency_ns,
+        std::uint64_t intra_leg_latency_ns,
+        double taker_fee_bps,
+        double max_cycle_notional_usdt
     )
-        : initial_usdt_(initial_usdt),
-          latency_ns_(latency_ns),
-          intra_leg_latency_ns_(intra_leg_latency_ns),
-          taker_fee_bps_(taker_fee_bps),
-          max_cycle_notional_usdt_(max_cycle_notional_usdt) {}
+        : config_(Config {
+              .initial_usdt = initial_usdt,
+              .latency_ns = latency_ns,
+              .intra_leg_latency_ns = intra_leg_latency_ns,
+              .taker_fee_bps = taker_fee_bps,
+              .max_cycle_notional_usdt = max_cycle_notional_usdt,
+          }) {}
 
     AssetID add_pair(std::string base_asset, std::string quote_asset, std::filesystem::path csv_file_path) {
         if (running_) {
@@ -86,7 +121,8 @@ public:
     [[nodiscard]] Result run() {
         prepare_runtime();
         Result result {};
-        result.initial_usdt = initial_usdt_;
+        result.initial_usdt = config_.initial_usdt;
+        result.cycle_snapshots.reserve(100'000U);
 
         while (has_next_event()) {
             const AssetID pair_id = next_pair_index();
@@ -107,8 +143,8 @@ public:
         release_pending_cycles(result, std::numeric_limits<std::uint64_t>::max());
         rebuild_edges();
         result.final_usdt = wallet_.balance(usdt_asset_id_);
-        result.final_nav = wallet_.mark_to_market_nav(edges_, taker_fee_bps_);
-        result.inventory_risk = wallet_.get_total_inventory_risk(edges_, taker_fee_bps_);
+        result.final_nav = wallet_.mark_to_market_nav(edges_, config_.taker_fee_bps);
+        result.inventory_risk = wallet_.get_total_inventory_risk(edges_, config_.taker_fee_bps);
         result.balances = wallet_.balances();
         result.last_cycle = cycle_;
         running_ = false;
@@ -120,7 +156,6 @@ public:
     }
 
 private:
-    static constexpr std::size_t kMaxGraphLegs = 16U;
     static constexpr std::size_t kPendingCycleCapacity = 16'384U;
     static constexpr double kEpsilon = 1e-12;
 
@@ -230,7 +265,7 @@ private:
         cycle_.reserve(asset_count + 1U);
         const auto usdt_it = asset_index_.find("USDT");
         usdt_asset_id_ = usdt_it != asset_index_.end() ? usdt_it->second : 0U;
-        wallet_.reset(asset_count, usdt_asset_id_, initial_usdt_);
+        wallet_.reset(asset_count, usdt_asset_id_, config_.initial_usdt);
         edges_.clear();
         edges_.reserve(pairs_.size() * 2U);
         depletion_ledger_.assign(pair_states_.size(), DepletionState {});
@@ -278,6 +313,16 @@ private:
         state.bid_qty = event.bid_qty;
         state.ask_price = event.ask_price;
         state.ask_qty = event.ask_qty;
+        const double depth_sum = event.bid_qty + event.ask_qty;
+        if (depth_sum > kEpsilon && event.bid_price > 0.0 && event.ask_price > 0.0) {
+            state.obi = (event.bid_qty - event.ask_qty) / depth_sum;
+            state.micro_price = ((event.bid_price * event.ask_qty) + (event.ask_price * event.bid_qty)) / depth_sum;
+            state.spread_bps = ((event.ask_price - event.bid_price) / event.bid_price) * 10'000.0;
+        } else {
+            state.obi = 0.0;
+            state.micro_price = 0.0;
+            state.spread_bps = 0.0;
+        }
 
         DepletionState& depletion = depletion_ledger_[event.pair_id];
         depletion.last_update_ns = current_time_ns_;
@@ -383,12 +428,14 @@ private:
         }
 
         const double start_quantity = calculate_fee_aware_bottleneck();
-        if (start_quantity <= 0.0) {
+        const bool executable = start_quantity > 0.0 && cycle_passes_execution_filters() && cycle_edge_bps() >= config_.min_cycle_edge_bps;
+        record_cycle_snapshot(result, executable);
+        if (!executable) {
             return;
         }
 
         PendingCycle pending {};
-        pending.release_time_ns = current_time_ns_ + latency_ns_;
+        pending.release_time_ns = current_time_ns_ + config_.latency_ns;
         pending.leg_count = static_cast<std::uint8_t>(cycle_.size() - 1U);
         pending.start_quantity = start_quantity;
         for (std::size_t index = 0U; index < cycle_.size(); ++index) {
@@ -404,7 +451,7 @@ private:
     [[nodiscard]] double calculate_fee_aware_bottleneck() const noexcept {
         double cumulative_input = 1.0;
         const double available_usdt = wallet_.balance(usdt_asset_id_);
-        double max_start = max_cycle_notional_usdt_ > 0.0 ? max_cycle_notional_usdt_ : available_usdt;
+        double max_start = config_.max_cycle_notional_usdt > 0.0 ? config_.max_cycle_notional_usdt : available_usdt;
         if (available_usdt < max_start) {
             max_start = available_usdt;
         }
@@ -440,7 +487,7 @@ private:
         const double initial_quantity = quantity;
 
         for (std::size_t leg = 0U; leg < pending.leg_count; ++leg) {
-            (void)(pending.release_time_ns + (leg + 1U) * intra_leg_latency_ns_);
+            (void)(pending.release_time_ns + (leg + 1U) * config_.intra_leg_latency_ns);
             rebuild_edges();
             const AssetID next_asset = pending.assets[leg + 1U];
             const Edge* edge = edge_for(current_asset, next_asset);
@@ -455,7 +502,7 @@ private:
 
             wallet_.sub_balance(current_asset, quantity);
             apply_depletion(*edge, quantity);
-            quantity = wallet_.apply_fill(next_asset, quantity * edge->rate, taker_fee_bps_);
+            quantity = wallet_.apply_fill(next_asset, quantity * edge->rate, config_.taker_fee_bps);
             current_asset = next_asset;
         }
 
@@ -481,7 +528,7 @@ private:
 
         const double recovered_usdt = convert_to_usdt(asset_id, close_quantity);
         wallet_.sub_balance(asset_id, close_quantity);
-        (void)wallet_.apply_fill(usdt_asset_id_, recovered_usdt, taker_fee_bps_);
+        (void)wallet_.apply_fill(usdt_asset_id_, recovered_usdt, config_.taker_fee_bps);
     }
 
     [[nodiscard]] double convert_to_usdt(AssetID asset_id, double quantity) noexcept {
@@ -532,7 +579,7 @@ private:
     }
 
     [[nodiscard]] double taker_fee_multiplier() const noexcept {
-        return 1.0 - (taker_fee_bps_ * 0.0001);
+        return 1.0 - (config_.taker_fee_bps * 0.0001);
     }
 
     [[nodiscard]] const Edge* edge_for(AssetID from, AssetID to) const noexcept {
@@ -544,11 +591,93 @@ private:
         return nullptr;
     }
 
-    double initial_usdt_ {};
-    std::uint64_t latency_ns_ {};
-    std::uint64_t intra_leg_latency_ns_ {75U};
-    double taker_fee_bps_ {};
-    double max_cycle_notional_usdt_ {1'000.0};
+    [[nodiscard]] bool cycle_passes_execution_filters() const noexcept {
+        for (std::size_t index = 0U; index + 1U < cycle_.size(); ++index) {
+            const Edge* edge = edge_for(cycle_[index], cycle_[index + 1U]);
+            if (edge == nullptr) {
+                return false;
+            }
+
+            const PairState& state = pair_states_[edge->pair_id];
+            if (state.spread_bps > config_.max_spread_bps) {
+                return false;
+            }
+            if (config_.min_depth_usdt > 0.0 && depth_to_usdt(*edge) < config_.min_depth_usdt) {
+                return false;
+            }
+            if (!obi_is_acceptable(*edge, state)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    [[nodiscard]] double cycle_edge_bps() const noexcept {
+        double rate = 1.0;
+        const double fee_multiplier = taker_fee_multiplier();
+        for (std::size_t index = 0U; index + 1U < cycle_.size(); ++index) {
+            const Edge* edge = edge_for(cycle_[index], cycle_[index + 1U]);
+            if (edge == nullptr || edge->rate <= 0.0) {
+                return -std::numeric_limits<double>::infinity();
+            }
+            rate *= edge->rate * fee_multiplier;
+        }
+        return (rate - 1.0) * 10'000.0;
+    }
+
+    [[nodiscard]] bool obi_is_acceptable(const Edge& edge, const PairState& state) const noexcept {
+        if (config_.max_adverse_obi >= 1.0) {
+            return true;
+        }
+        if (!edge.use_bid && state.obi > config_.max_adverse_obi) {
+            return false;
+        }
+        if (edge.use_bid && state.obi < -config_.max_adverse_obi) {
+            return false;
+        }
+        return true;
+    }
+
+    [[nodiscard]] double depth_to_usdt(const Edge& edge) const noexcept {
+        if (edge.from == usdt_asset_id_) {
+            return edge.available_from_qty;
+        }
+        if (edge.to == usdt_asset_id_) {
+            return edge.available_from_qty * edge.rate;
+        }
+        if (const Edge* to_usdt = edge_for(edge.to, usdt_asset_id_)) {
+            return edge.available_from_qty * edge.rate * to_usdt->rate;
+        }
+        if (const Edge* from_usdt = edge_for(edge.from, usdt_asset_id_)) {
+            return edge.available_from_qty * from_usdt->rate;
+        }
+        return 0.0;
+    }
+
+    void record_cycle_snapshot(Result& result, bool executed) const {
+        CycleSnapshot snapshot {};
+        snapshot.timestamp_ns = current_time_ns_;
+        snapshot.executed = executed;
+        snapshot.leg_count = static_cast<std::uint8_t>(cycle_.size() > 0U ? cycle_.size() - 1U : 0U);
+        for (std::size_t index = 0U; index < cycle_.size() && index < snapshot.cycle_path.size(); ++index) {
+            snapshot.cycle_path[index] = cycle_[index];
+        }
+        for (std::size_t index = 0U; index < snapshot.leg_count; ++index) {
+            const Edge* edge = edge_for(cycle_[index], cycle_[index + 1U]);
+            if (edge == nullptr) {
+                snapshot.leg_obis[index] = 0.0;
+                snapshot.leg_spreads_bps[index] = 0.0;
+                continue;
+            }
+
+            const PairState& state = pair_states_[edge->pair_id];
+            snapshot.leg_obis[index] = state.obi;
+            snapshot.leg_spreads_bps[index] = state.spread_bps;
+        }
+        result.cycle_snapshots.push_back(std::move(snapshot));
+    }
+
+    Config config_ {};
     AssetID usdt_asset_id_ {};
     std::uint64_t current_time_ns_ {};
     bool running_ {};

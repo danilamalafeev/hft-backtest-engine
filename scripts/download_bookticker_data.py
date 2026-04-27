@@ -13,7 +13,8 @@ import zipfile
 from pathlib import Path
 
 
-BASE_URL = "https://data.binance.vision/data/spot/daily/bookTicker"
+BOOK_TICKER_URL = "https://data.binance.vision/data/spot/daily/bookTicker"
+TRADES_URL = "https://data.binance.vision/data/spot/daily/trades"
 MAX_ATTEMPTS = 3
 
 
@@ -22,6 +23,24 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--date", required=True, help="Trading date in YYYY-MM-DD format")
     parser.add_argument("--symbols", nargs="+", required=True, help="Symbols such as BTCUSDT ETHUSDT ETHBTC")
     parser.add_argument("--output-dir", type=Path, default=Path("data"), help="Output directory")
+    parser.add_argument(
+        "--fallback",
+        choices=("synthetic-trades", "none"),
+        default="synthetic-trades",
+        help="Fallback when spot bookTicker archives are unavailable on Binance Vision",
+    )
+    parser.add_argument(
+        "--synthetic-spread-bps",
+        type=float,
+        default=2.0,
+        help="Bid/ask spread used when synthesizing BBO from spot trades",
+    )
+    parser.add_argument(
+        "--synthetic-qty-multiplier",
+        type=float,
+        default=10.0,
+        help="Quantity multiplier used when synthesizing BBO size from trade quantity",
+    )
     return parser.parse_args()
 
 
@@ -34,6 +53,8 @@ def download_file(url: str, destination: Path) -> None:
                     shutil.copyfileobj(response, output, length=1024 * 1024)
             return
         except (urllib.error.URLError, TimeoutError) as exc:
+            if isinstance(exc, urllib.error.HTTPError) and exc.code == 404:
+                raise FileNotFoundError(url) from exc
             if attempt == MAX_ATTEMPTS:
                 raise RuntimeError(f"failed to download {url}: {exc}") from exc
             sleep_seconds = 2 ** attempt
@@ -101,21 +122,123 @@ def normalize_csv(raw_path: Path, clean_path: Path) -> None:
             writer.writerow(row_to_clean(row, header))
 
 
+def extract_raw_csv(zip_path: Path, output_dir: Path, stem: str) -> Path:
+    with zipfile.ZipFile(zip_path) as archive:
+        csv_names = [name for name in archive.namelist() if name.endswith(".csv")]
+        if len(csv_names) != 1:
+            raise RuntimeError(f"expected exactly one CSV in {zip_path}, found {len(csv_names)}")
+
+        raw_path = output_dir / f"{stem}.raw.csv"
+        with archive.open(csv_names[0]) as source, raw_path.open("wb") as destination:
+            shutil.copyfileobj(source, destination, length=1024 * 1024)
+        return raw_path
+
+
+def trade_row_to_clean_bbo(
+    row: list[str],
+    spread_fraction: float,
+    qty_multiplier: float,
+) -> tuple[str, str, str, str, str]:
+    # Binance spot trades archives:
+    # trade_id,price,qty,quote_qty,time,is_buyer_maker,is_best_match
+    if len(row) < 5:
+        raise RuntimeError(f"unsupported trades row with {len(row)} columns: {row}")
+
+    price = float(row[1])
+    qty = max(float(row[2]) * qty_multiplier, 1e-12)
+    timestamp = row[4].strip()
+    is_buyer_maker = len(row) > 5 and row[5].strip().lower() == "true"
+
+    if is_buyer_maker:
+        bid_price = price
+        ask_price = price * (1.0 + spread_fraction)
+    else:
+        bid_price = price * (1.0 - spread_fraction)
+        ask_price = price
+
+    return (
+        timestamp,
+        f"{bid_price:.12f}",
+        f"{qty:.12f}",
+        f"{ask_price:.12f}",
+        f"{qty:.12f}",
+    )
+
+
+def synthesize_bookticker_from_trades(
+    raw_trades_path: Path,
+    clean_path: Path,
+    spread_bps: float,
+    qty_multiplier: float,
+) -> None:
+    spread_fraction = spread_bps * 0.0001
+    with raw_trades_path.open(newline="") as source, clean_path.open("w", newline="") as destination:
+        reader = csv.reader(source)
+        writer = csv.writer(destination)
+        writer.writerow(["timestamp", "bid_price", "bid_qty", "ask_price", "ask_qty"])
+
+        for row in reader:
+            if not row:
+                continue
+            if row[0].strip() and not row[0].strip()[0].isdigit():
+                continue
+            writer.writerow(trade_row_to_clean_bbo(row, spread_fraction, qty_multiplier))
+
+
 def main() -> int:
     args = parse_args()
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
     for symbol in args.symbols:
         archive_name = f"{symbol}-bookTicker-{args.date}.zip"
-        url = f"{BASE_URL}/{symbol}/{archive_name}"
+        url = f"{BOOK_TICKER_URL}/{symbol}/{archive_name}"
         zip_path = args.output_dir / archive_name
         clean_path = args.output_dir / f"{symbol}-bookTicker-{args.date}.csv"
 
-        download_file(url, zip_path)
-        raw_path = first_csv_from_zip(zip_path, args.output_dir)
-        normalize_csv(raw_path, clean_path)
-        raw_path.unlink()
-        zip_path.unlink()
+        try:
+            download_file(url, zip_path)
+            raw_path = first_csv_from_zip(zip_path, args.output_dir)
+            normalize_csv(raw_path, clean_path)
+            raw_path.unlink()
+            zip_path.unlink()
+        except FileNotFoundError:
+            if args.fallback == "none":
+                raise
+
+            print(
+                f"Spot bookTicker archive not found for {symbol}; "
+                "falling back to synthetic BBO from spot trades.",
+                file=sys.stderr,
+            )
+            trades_archive_name = f"{symbol}-trades-{args.date}.zip"
+            trades_url = f"{TRADES_URL}/{symbol}/{trades_archive_name}"
+            trades_zip_path = args.output_dir / trades_archive_name
+            existing_trades_path = args.output_dir / f"{symbol}-trades-{args.date}.csv"
+            if existing_trades_path.exists():
+                raw_path = existing_trades_path
+                cleanup_raw = False
+                cleanup_zip = False
+                print(f"Using existing trades CSV {existing_trades_path}")
+            else:
+                download_file(trades_url, trades_zip_path)
+                raw_path = extract_raw_csv(trades_zip_path, args.output_dir, f"{symbol}-trades-{args.date}")
+                cleanup_raw = True
+                cleanup_zip = True
+            synthesize_bookticker_from_trades(
+                raw_path,
+                clean_path,
+                args.synthetic_spread_bps,
+                args.synthetic_qty_multiplier,
+            )
+            if cleanup_raw:
+                raw_path.unlink()
+            if cleanup_zip:
+                trades_zip_path.unlink()
+            print(
+                "WARNING: wrote synthetic BBO, not real historical L2. "
+                "Use it for pipeline testing only.",
+                file=sys.stderr,
+            )
         print(f"Wrote {clean_path}")
 
     return 0
