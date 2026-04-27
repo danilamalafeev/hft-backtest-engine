@@ -13,6 +13,12 @@
 },
 {
   "directory": "/Users/danilamalafeev/Documents/New project/build-release",
+  "command": "/usr/bin/c++  -I\"/Users/danilamalafeev/Documents/New project/include\" -O3 -DNDEBUG -std=c++20 -arch arm64 -fPIC -o CMakeFiles/lob_core.dir/src/l2_csv_parser.cpp.o -c \"/Users/danilamalafeev/Documents/New project/src/l2_csv_parser.cpp\"",
+  "file": "/Users/danilamalafeev/Documents/New project/src/l2_csv_parser.cpp",
+  "output": "CMakeFiles/lob_core.dir/src/l2_csv_parser.cpp.o"
+},
+{
+  "directory": "/Users/danilamalafeev/Documents/New project/build-release",
   "command": "/usr/bin/c++  -I\"/Users/danilamalafeev/Documents/New project/include\" -O3 -DNDEBUG -std=c++20 -arch arm64 -fPIC -o CMakeFiles/lob_core.dir/src/order_book.cpp.o -c \"/Users/danilamalafeev/Documents/New project/src/order_book.cpp\"",
   "file": "/Users/danilamalafeev/Documents/New project/src/order_book.cpp",
   "output": "CMakeFiles/lob_core.dir/src/order_book.cpp.o"

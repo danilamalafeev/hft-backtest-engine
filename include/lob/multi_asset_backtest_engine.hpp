@@ -47,6 +47,7 @@ public:
         AsyncLogger<>* async_logger {};
         std::uint64_t intra_leg_latency_ns {75U};
         std::uint64_t intra_leg_jitter_ns {25U};
+        std::size_t microstructure_reserve {};
     };
 
     struct ExecutionDiagnostics {
@@ -99,6 +100,7 @@ public:
     [[nodiscard]] Result run() {
         Result result {};
         strategy_.on_start(*this);
+        reset_microstructure_recording_state();
 
         while (merger_.has_next()) {
             Event event = merger_.get_next();
@@ -111,6 +113,7 @@ public:
             order.timestamp = current_time_ns_;
             books_[event.asset_id].process_order(order, trade_buffer_);
             update_last_mid(event.asset_id);
+            maybe_record_microstructure(event.asset_id);
 
             strategy_.on_tick(event.asset_id, books_[event.asset_id], *this);
             release_pending_orders(current_time_ns_);
@@ -193,6 +196,24 @@ public:
 
     [[nodiscard]] std::uint64_t current_timestamp() const noexcept override {
         return current_time_ns_;
+    }
+
+    void enable_microstructure_recording(bool enable, std::uint64_t sampling_interval_ns = 0U) {
+        record_microstructure_ = enable;
+        sampling_interval_ns_ = sampling_interval_ns;
+        snapshots_.clear();
+        if (config_.microstructure_reserve > 0U) {
+            snapshots_.reserve(config_.microstructure_reserve);
+        }
+        last_snapshot_time_by_asset_.fill(0U);
+    }
+
+    [[nodiscard]] const std::vector<MarketSnapshot>& microstructure_snapshots() const noexcept {
+        return snapshots_;
+    }
+
+    [[nodiscard]] std::vector<MarketSnapshot> take_microstructure_snapshots() noexcept {
+        return std::move(snapshots_);
     }
 
     [[nodiscard]] OrderGroupResult execute_group(const OrderGroup& group) override {
@@ -344,6 +365,48 @@ private:
             parsers[index] = Parser {file_paths[index]};
         }
         return parsers;
+    }
+
+    void reset_microstructure_recording_state() {
+        if (!record_microstructure_) {
+            return;
+        }
+
+        snapshots_.clear();
+        if (config_.microstructure_reserve > 0U && snapshots_.capacity() < config_.microstructure_reserve) {
+            snapshots_.reserve(config_.microstructure_reserve);
+        }
+        last_snapshot_time_by_asset_.fill(0U);
+    }
+
+    void maybe_record_microstructure(AssetID asset_id) {
+        if (!record_microstructure_ || asset_id >= N) {
+            return;
+        }
+
+        std::uint64_t& last_snapshot_time = last_snapshot_time_by_asset_[asset_id];
+        if (sampling_interval_ns_ != 0U &&
+            last_snapshot_time != 0U &&
+            current_time_ns_ < last_snapshot_time + sampling_interval_ns_) {
+            return;
+        }
+
+        const OrderBook& book = books_[asset_id];
+        const double best_bid = book.get_best_bid();
+        const double best_ask = book.get_best_ask();
+        snapshots_.push_back(MarketSnapshot {
+            .ts = current_time_ns_,
+            .asset = static_cast<std::uint32_t>(asset_id),
+            .bid_p = best_bid,
+            .bid_q = best_bid > 0.0
+                ? static_cast<double>(book.get_total_quantity_at_price(Side::Buy, best_bid)) / kQuantityScale
+                : 0.0,
+            .ask_p = best_ask,
+            .ask_q = best_ask > 0.0
+                ? static_cast<double>(book.get_total_quantity_at_price(Side::Sell, best_ask)) / kQuantityScale
+                : 0.0,
+        });
+        last_snapshot_time = current_time_ns_;
     }
 
     void release_pending_orders(std::uint64_t now_ns) {
@@ -939,13 +1002,17 @@ private:
     std::lognormal_distribution<double> lognormal_jitter_ {};
     std::array<std::int64_t, N> position_ {};
     std::array<double, N> last_mid_ {};
+    std::array<std::uint64_t, N> last_snapshot_time_by_asset_ {};
     std::array<PerAssetStats, N> per_asset_stats_ {};
+    std::vector<MarketSnapshot> snapshots_ {};
     Wallet wallet_ {};
     ExecutionDiagnostics execution_ {};
     AssetID current_asset_id_ {};
     std::uint64_t current_time_ns_ {};
     std::uint64_t next_strategy_order_id_ {1ULL << 63U};
     std::uint64_t dropped_pending_orders_ {};
+    bool record_microstructure_ {};
+    std::uint64_t sampling_interval_ns_ {};
 };
 
 }  // namespace lob

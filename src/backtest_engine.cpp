@@ -18,6 +18,16 @@ constexpr std::uint64_t kNanosecondsPerMillisecond = 1'000'000ULL;
     return static_cast<double>(position) / kQuantityScale;
 }
 
+[[nodiscard]] double SnapshotMidPrice(const MarketSnapshot& snapshot) noexcept {
+    if (snapshot.bid_p > 0.0 && snapshot.ask_p > 0.0) {
+        return (snapshot.bid_p + snapshot.ask_p) * 0.5;
+    }
+    if (snapshot.bid_p > 0.0) {
+        return snapshot.bid_p;
+    }
+    return snapshot.ask_p;
+}
+
 }  // namespace
 
 BacktestEngine::BacktestEngine(Strategy& strategy)
@@ -77,7 +87,7 @@ BacktestEngine::Result BacktestEngine::run(const std::filesystem::path& file_pat
         sample_equity(current_time_ns_);
     });
 
-    if (snapshot_.mid_price > 0.0) {
+    if (SnapshotMidPrice(snapshot_) > 0.0) {
         equity_curve_.push_back(current_equity());
         write_trace_row(current_time_ns_, 0, "None");
     }
@@ -86,7 +96,7 @@ BacktestEngine::Result BacktestEngine::run(const std::filesystem::path& file_pat
     result.execution = execution_;
     result.final_cash = cash_;
     result.final_position = position_;
-    result.final_mid_price = snapshot_.mid_price;
+    result.final_mid_price = SnapshotMidPrice(snapshot_);
     result.equity_curve = std::move(equity_curve_);
     close_trace_log();
     return result;
@@ -152,7 +162,7 @@ bool BacktestEngine::cancel_order(AssetID asset_id, std::uint64_t order_id) {
 }
 
 std::uint64_t BacktestEngine::current_timestamp() const noexcept {
-    return snapshot_.timestamp;
+    return snapshot_.ts;
 }
 
 void BacktestEngine::process_market_order(const Order& order) {
@@ -472,7 +482,7 @@ std::uint64_t BacktestEngine::sample_latency_ns() {
 }
 
 void BacktestEngine::sample_equity(std::uint64_t timestamp) {
-    if (snapshot_.mid_price <= 0.0 || config_.equity_sample_interval_ns == 0U) {
+    if (SnapshotMidPrice(snapshot_) <= 0.0 || config_.equity_sample_interval_ns == 0U) {
         return;
     }
 
@@ -484,19 +494,21 @@ void BacktestEngine::sample_equity(std::uint64_t timestamp) {
 }
 
 void BacktestEngine::update_snapshot(std::uint64_t timestamp, double fallback_price) {
-    snapshot_.timestamp = timestamp;
+    snapshot_.ts = timestamp;
+    snapshot_.asset = 0U;
 
-    snapshot_.best_bid = order_book_.get_best_bid();
-    snapshot_.best_ask = order_book_.get_best_ask();
+    snapshot_.bid_p = order_book_.get_best_bid();
+    snapshot_.ask_p = order_book_.get_best_ask();
+    snapshot_.bid_q = snapshot_.bid_p > 0.0
+        ? QuantityToUnits(order_book_.get_total_quantity_at_price(Side::Buy, snapshot_.bid_p))
+        : 0.0;
+    snapshot_.ask_q = snapshot_.ask_p > 0.0
+        ? QuantityToUnits(order_book_.get_total_quantity_at_price(Side::Sell, snapshot_.ask_p))
+        : 0.0;
 
-    if (snapshot_.best_bid > 0.0 && snapshot_.best_ask > 0.0) {
-        snapshot_.mid_price = (snapshot_.best_bid + snapshot_.best_ask) * 0.5;
-    } else if (snapshot_.best_bid > 0.0) {
-        snapshot_.mid_price = snapshot_.best_bid;
-    } else if (snapshot_.best_ask > 0.0) {
-        snapshot_.mid_price = snapshot_.best_ask;
-    } else {
-        snapshot_.mid_price = fallback_price;
+    if (SnapshotMidPrice(snapshot_) <= 0.0) {
+        snapshot_.bid_p = fallback_price;
+        snapshot_.ask_p = fallback_price;
     }
 }
 
@@ -521,19 +533,20 @@ void BacktestEngine::close_trace_log() {
 }
 
 void BacktestEngine::write_trace_row(std::uint64_t timestamp, int is_bot_trade, const char* trade_side) {
-    if (!trace_log_.is_open() || snapshot_.mid_price <= 0.0) {
+    const double mid_price = SnapshotMidPrice(snapshot_);
+    if (!trace_log_.is_open() || mid_price <= 0.0) {
         return;
     }
 
     trace_log_ << timestamp << ','
-               << snapshot_.mid_price << ','
+               << mid_price << ','
                << current_equity() << ','
                << is_bot_trade << ','
                << trade_side << '\n';
 }
 
 double BacktestEngine::current_equity() const noexcept {
-    return cash_ + (PositionToUnits(position_) * snapshot_.mid_price);
+    return cash_ + (PositionToUnits(position_) * SnapshotMidPrice(snapshot_));
 }
 
 bool BacktestEngine::is_strategy_order(std::uint64_t order_id) const noexcept {

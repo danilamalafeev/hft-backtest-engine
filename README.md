@@ -138,6 +138,39 @@ result = engine.run(paths)
 
 Both `run_triangular(...)` and `TriangularEngine.run(...)` are quiet by default and release the Python GIL while the C++ replay loop is running. This makes threaded parameter sweeps possible, though large CSV replays are also limited by memory bandwidth and page-cache pressure.
 
+### Microstructure Snapshots
+
+For L1 research features such as OFI, BBO imbalance, and short-horizon momentum, use `TriangularEngine` and enable microstructure recording before `run(...)`:
+
+```python
+import pandas as pd
+import yabe
+
+engine = yabe.TriangularEngine(
+    latency_ns=500_000,
+    maker_fee_bps=-1.0,
+    taker_fee_bps=7.5,
+)
+
+# 0 records every update. Use a positive interval to control RAM usage.
+engine.enable_microstructure_recording(True, sampling_interval_ns=1_000_000_000)
+result = engine.run(paths)
+
+arrays = engine.get_microstructure_dataframe()
+df = pd.DataFrame(arrays)
+
+df["mid"] = (df["bid_price"] + df["ask_price"]) * 0.5
+df["imbalance"] = (df["bid_qty"] - df["ask_qty"]) / (df["bid_qty"] + df["ask_qty"])
+```
+
+`get_microstructure_dataframe()` returns a dictionary of NumPy arrays, not Python objects:
+- `timestamp`
+- `asset_id`
+- `bid_price`
+- `bid_qty`
+- `ask_price`
+- `ask_qty`
+
 ## Latency and OMS Simulation
 
 The engine realistically models network and matching engine conditions:

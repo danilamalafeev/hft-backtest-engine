@@ -13,10 +13,12 @@ enum class LiquidityRole : std::uint8_t {
 };
 
 struct MarketSnapshot {
-    std::uint64_t timestamp {};
-    double best_bid {};
-    double best_ask {};
-    double mid_price {};
+    std::uint64_t ts {};
+    std::uint32_t asset {};
+    double bid_p {};
+    double bid_q {};
+    double ask_p {};
+    double ask_q {};
 };
 
 struct FillEvent {
