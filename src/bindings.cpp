@@ -107,6 +107,7 @@ public:
     const std::vector<double>& balances() const noexcept { return result_.balances; }
     const std::vector<lob::AssetID>& last_cycle() const noexcept { return result_.last_cycle; }
     std::size_t cycle_snapshot_count() const noexcept { return result_.cycle_snapshots.size(); }
+    std::uint64_t cycle_snapshots_overwritten() const noexcept { return result_.cycle_snapshots_overwritten; }
 
     [[nodiscard]] py::dict get_cycle_snapshots_dataframe() const {
         py::ssize_t row_count = 0;
@@ -175,10 +176,13 @@ public:
         double max_adverse_obi,
         double max_spread_bps,
         double min_depth_usdt,
-        double min_cycle_edge_bps
+        double min_cycle_edge_bps,
+        std::size_t cycle_snapshot_reserve,
+        std::string quote_asset
     )
         : engine_(lob::GraphArbitrageEngine::Config {
               .initial_usdt = initial_usdt,
+              .quote_asset = std::move(quote_asset),
               .latency_ns = latency_ns,
               .intra_leg_latency_ns = intra_leg_latency_ns,
               .taker_fee_bps = taker_fee_bps,
@@ -187,6 +191,7 @@ public:
               .max_spread_bps = max_spread_bps,
               .min_depth_usdt = min_depth_usdt,
               .min_cycle_edge_bps = min_cycle_edge_bps,
+              .cycle_snapshot_reserve = cycle_snapshot_reserve,
           }) {}
 
     lob::AssetID add_pair(const std::string& base_asset, const std::string& quote_asset, const std::string& csv_file_path) {
@@ -344,11 +349,12 @@ PYBIND11_MODULE(yabe, module) {
         .def_property_readonly("balances", &PyGraphResult::balances)
         .def_property_readonly("last_cycle", &PyGraphResult::last_cycle)
         .def_property_readonly("cycle_snapshot_count", &PyGraphResult::cycle_snapshot_count)
+        .def_property_readonly("cycle_snapshots_overwritten", &PyGraphResult::cycle_snapshots_overwritten)
         .def("get_cycle_snapshots_dataframe", &PyGraphResult::get_cycle_snapshots_dataframe);
 
     py::class_<PyGraphEngine>(module, "GraphEngine")
         .def(
-            py::init<double, std::uint64_t, std::uint64_t, double, double, double, double, double, double>(),
+            py::init<double, std::uint64_t, std::uint64_t, double, double, double, double, double, double, std::size_t, std::string>(),
             py::arg("initial_usdt") = 100'000'000.0,
             py::arg("latency_ns") = 0,
             py::arg("intra_leg_latency_ns") = 75,
@@ -357,7 +363,9 @@ PYBIND11_MODULE(yabe, module) {
             py::arg("max_adverse_obi") = 1.0,
             py::arg("max_spread_bps") = 1'000.0,
             py::arg("min_depth_usdt") = 0.0,
-            py::arg("min_cycle_edge_bps") = 0.0
+            py::arg("min_cycle_edge_bps") = 0.0,
+            py::arg("cycle_snapshot_reserve") = 100'000U,
+            py::arg("quote_asset") = "USDT"
         )
         .def("add_pair", &PyGraphEngine::add_pair, py::arg("base_asset"), py::arg("quote_asset"), py::arg("csv_file_path"))
         .def_property_readonly("assets", &PyGraphEngine::assets)

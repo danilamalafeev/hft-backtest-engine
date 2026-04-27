@@ -9,7 +9,9 @@
 
 #include "lob/analytics.hpp"
 #include "lob/csv_parser.hpp"
+#include "lob/dynamic_wallet.hpp"
 #include "lob/event_merger.hpp"
+#include "lob/l2_depth5_csv_parser.hpp"
 #include "lob/multi_asset_backtest_engine.hpp"
 #include "lob/order_book.hpp"
 
@@ -68,6 +70,27 @@ TEST(OrderBookTest, InitializesSuccessfully) {
     (void)order_book;
 
     ASSERT_TRUE(true);
+}
+
+TEST(DynamicWalletTest, TracksReservedAndFreeBalances) {
+    lob::DynamicWallet wallet {};
+    wallet.reset(2U, 0U, 100.0);
+
+    EXPECT_TRUE(wallet.reserve_balance(0U, 60.0));
+    EXPECT_DOUBLE_EQ(wallet.balance(0U), 100.0);
+    EXPECT_DOUBLE_EQ(wallet.reserved(0U), 60.0);
+    EXPECT_DOUBLE_EQ(wallet.free_balance(0U), 40.0);
+    EXPECT_FALSE(wallet.reserve_balance(0U, 50.0));
+
+    EXPECT_TRUE(wallet.consume_reserved(0U, 25.0));
+    EXPECT_DOUBLE_EQ(wallet.balance(0U), 75.0);
+    EXPECT_DOUBLE_EQ(wallet.reserved(0U), 35.0);
+    EXPECT_DOUBLE_EQ(wallet.free_balance(0U), 40.0);
+
+    wallet.release_reserved(0U, 35.0);
+    EXPECT_DOUBLE_EQ(wallet.balance(0U), 75.0);
+    EXPECT_DOUBLE_EQ(wallet.reserved(0U), 0.0);
+    EXPECT_DOUBLE_EQ(wallet.free_balance(0U), 75.0);
 }
 
 TEST(OrderBookTest, ProcessOrderRestsBuyOrderWhenBookDoesNotCross) {
@@ -336,6 +359,49 @@ TEST(CsvParserTest, StreamsMmapEventsWithOneEventLookahead) {
     EXPECT_FALSE(parser.has_next());
 
     std::filesystem::remove(csv_path);
+}
+
+TEST(L2Depth5CsvParserTest, StreamsDepth5RowsAndBackfillsBboRows) {
+    const std::filesystem::path depth_path = std::filesystem::temp_directory_path() / "lob_depth5_parser_test.csv";
+    {
+        std::ofstream csv {depth_path};
+        csv << "timestamp,b1_p,b1_q,b2_p,b2_q,b3_p,b3_q,b4_p,b4_q,b5_p,b5_q,"
+               "a1_p,a1_q,a2_p,a2_q,a3_p,a3_q,a4_p,a4_q,a5_p,a5_q\n"
+            << "1000,99,1,98,2,97,3,96,4,95,5,101,6,102,7,103,8,104,9,105,10\n";
+    }
+
+    lob::L2Depth5CsvParser depth_parser {depth_path};
+    ASSERT_TRUE(depth_parser.has_next());
+    const lob::L2Depth5Event& depth_event = depth_parser.peek();
+    EXPECT_EQ(depth_event.timestamp, 1000U);
+    EXPECT_DOUBLE_EQ(depth_event.bid_prices[0], 99.0);
+    EXPECT_DOUBLE_EQ(depth_event.bid_qty[4], 5.0);
+    EXPECT_DOUBLE_EQ(depth_event.ask_prices[0], 101.0);
+    EXPECT_DOUBLE_EQ(depth_event.ask_qty[4], 10.0);
+    depth_parser.advance();
+    EXPECT_FALSE(depth_parser.has_next());
+    std::filesystem::remove(depth_path);
+
+    const std::filesystem::path bbo_path = std::filesystem::temp_directory_path() / "lob_depth5_bbo_parser_test.csv";
+    {
+        std::ofstream csv {bbo_path};
+        csv << "timestamp,bid_price,bid_qty,ask_price,ask_qty\n"
+            << "2000,100,2,101,3\n";
+    }
+
+    lob::L2Depth5CsvParser bbo_parser {bbo_path};
+    ASSERT_TRUE(bbo_parser.has_next());
+    const lob::L2Depth5Event& bbo_event = bbo_parser.peek();
+    EXPECT_EQ(bbo_event.timestamp, 2000U);
+    EXPECT_DOUBLE_EQ(bbo_event.bid_prices[0], 100.0);
+    EXPECT_DOUBLE_EQ(bbo_event.bid_qty[0], 2.0);
+    EXPECT_DOUBLE_EQ(bbo_event.ask_prices[0], 101.0);
+    EXPECT_DOUBLE_EQ(bbo_event.ask_qty[0], 3.0);
+    EXPECT_DOUBLE_EQ(bbo_event.bid_prices[1], 0.0);
+    EXPECT_DOUBLE_EQ(bbo_event.ask_qty[1], 0.0);
+    bbo_parser.advance();
+    EXPECT_FALSE(bbo_parser.has_next());
+    std::filesystem::remove(bbo_path);
 }
 
 TEST(EventMergerTest, MergesSmallStreamSetWithFastPath) {

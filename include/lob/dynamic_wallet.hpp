@@ -16,6 +16,7 @@ public:
 
     void reset(std::size_t asset_count, AssetID quote_currency_id, double quote_balance) {
         balances_.assign(asset_count, 0.0);
+        reserved_.assign(asset_count, 0.0);
         quote_currency_id_ = quote_currency_id;
         if (quote_currency_id_ >= balances_.size()) {
             throw std::out_of_range("DynamicWallet quote currency id is out of range");
@@ -27,8 +28,20 @@ public:
         return balances_.at(asset);
     }
 
+    [[nodiscard]] double reserved(AssetID asset) const {
+        return reserved_.at(asset);
+    }
+
+    [[nodiscard]] double free_balance(AssetID asset) const {
+        return balances_.at(asset) - reserved_.at(asset);
+    }
+
     [[nodiscard]] const std::vector<double>& balances() const noexcept {
         return balances_;
+    }
+
+    [[nodiscard]] const std::vector<double>& reserved_balances() const noexcept {
+        return reserved_;
     }
 
     [[nodiscard]] AssetID quote_currency_id() const noexcept {
@@ -41,6 +54,42 @@ public:
 
     void sub_balance(AssetID asset, double quantity) noexcept {
         balances_[asset] -= quantity;
+    }
+
+    [[nodiscard]] bool reserve_balance(AssetID asset, double quantity) noexcept {
+        if (asset >= balances_.size() || quantity < 0.0) {
+            return false;
+        }
+        if (free_balance(asset) + kEpsilon < quantity) {
+            return false;
+        }
+        reserved_[asset] += quantity;
+        return true;
+    }
+
+    void release_reserved(AssetID asset, double quantity) noexcept {
+        if (asset >= reserved_.size() || quantity <= 0.0) {
+            return;
+        }
+        reserved_[asset] -= quantity;
+        if (reserved_[asset] < kEpsilon) {
+            reserved_[asset] = 0.0;
+        }
+    }
+
+    [[nodiscard]] bool consume_reserved(AssetID asset, double quantity) noexcept {
+        if (asset >= balances_.size() || quantity < 0.0) {
+            return false;
+        }
+        if (reserved_[asset] + kEpsilon < quantity || balances_[asset] + kEpsilon < quantity) {
+            return false;
+        }
+        reserved_[asset] -= quantity;
+        balances_[asset] -= quantity;
+        if (reserved_[asset] < kEpsilon) {
+            reserved_[asset] = 0.0;
+        }
+        return true;
     }
 
     [[nodiscard]] double apply_fill(AssetID asset, double quantity, double taker_fee_bps) noexcept {
@@ -87,6 +136,8 @@ public:
     }
 
 private:
+    static constexpr double kEpsilon = 1e-12;
+
     [[nodiscard]] static double fee_multiplier(double taker_fee_bps) noexcept {
         return 1.0 - (taker_fee_bps * 0.0001);
     }
@@ -124,6 +175,7 @@ private:
     }
 
     std::vector<double> balances_ {};
+    std::vector<double> reserved_ {};
     AssetID quote_currency_id_ {};
 };
 

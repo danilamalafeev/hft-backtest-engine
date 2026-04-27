@@ -49,6 +49,7 @@ add_library(lob_core STATIC
     src/backtest_engine.cpp
     src/csv_parser.cpp
     src/l2_csv_parser.cpp
+    src/l2_depth5_csv_parser.cpp
     src/order_book.cpp
 )
 target_include_directories(

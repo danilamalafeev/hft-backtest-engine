@@ -77,8 +77,12 @@ def find_auto_triangle(data_dir: Path, date: str) -> list[PairSpec]:
             data_dir / f"{symbol}-bookticker-{date}.csv",
             data_dir / f"tardis-binance-{symbol}-bbo-{date}.csv",
             data_dir / f"tardis-binance-futures-{symbol}-bbo-{date}.csv",
+            data_dir / f"tardis-binance-{symbol}-depth5-{date}.csv",
+            data_dir / f"tardis-binance-futures-{symbol}-depth5-{date}.csv",
             data_dir / "tardis" / f"tardis-binance-{symbol}-bbo-{date}.csv",
             data_dir / "tardis" / f"tardis-binance-futures-{symbol}-bbo-{date}.csv",
+            data_dir / "tardis" / f"tardis-binance-{symbol}-depth5-{date}.csv",
+            data_dir / "tardis" / f"tardis-binance-futures-{symbol}-depth5-{date}.csv",
             data_dir / f"{symbol}.csv",
         ]
         found = next((path for path in candidates if path.exists()), None)
@@ -112,6 +116,8 @@ def run_once(yabe, args: argparse.Namespace, pair_specs: list[PairSpec]) -> dict
         max_spread_bps=args.max_spread_bps,
         min_depth_usdt=args.min_depth_usdt,
         min_cycle_edge_bps=args.min_cycle_edge_bps,
+        cycle_snapshot_reserve=args.cycle_snapshot_reserve,
+        quote_asset=args.quote_asset,
     )
 
     for spec in pair_specs:
@@ -190,6 +196,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--max-spread-bps", type=float, default=1_000.0)
     parser.add_argument("--min-depth-usdt", type=float, default=0.0)
     parser.add_argument("--min-cycle-edge-bps", type=float, default=0.0)
+    parser.add_argument("--cycle-snapshot-reserve", type=int, default=100_000)
+    parser.add_argument("--quote-asset", default="USDT")
     parser.add_argument("--summary-csv", default="", help="Optional path for one-row result CSV")
     return parser
 

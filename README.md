@@ -105,16 +105,25 @@ Key execution filters:
 
 ## Data Sources
 
-YABE supports two data paths:
+YABE supports three data paths:
 
 1. Trade replay for the older `TriangularEngine`.
-2. L1/bookTicker-style replay for the newer `GraphEngine`.
+2. L1/bookTicker-style replay for `GraphEngine`.
+3. Depth-5 replay for `GraphEngine`, preserving the top five bid and ask levels in a fixed-size C++ struct.
 
-The `GraphEngine` L1 CSV format is:
+The backward-compatible L1 CSV format is:
 
 ```csv
 timestamp,bid_price,bid_qty,ask_price,ask_qty
 ```
+
+The preferred Depth-5 CSV format is:
+
+```csv
+timestamp,b1_p,b1_q,b2_p,b2_q,b3_p,b3_q,b4_p,b4_q,b5_p,b5_q,a1_p,a1_q,a2_p,a2_q,a3_p,a3_q,a4_p,a4_q,a5_p,a5_q
+```
+
+`GraphEngine` reads both formats. L1 rows are internally treated as a Depth-5 book with only level 1 populated.
 
 ### Spot Data Caveat
 
@@ -164,82 +173,90 @@ python3 scripts/download_tardis.py \
   --symbols BTCUSDT ETHUSDT ETHBTC
 ```
 
-Convert diffs to YABE's BBO schema:
+Convert diffs to YABE's Depth-5 schema:
 
 ```bash
-python3 scripts/tardis_to_bookticker.py \
+python3 scripts/tardis_to_depth5.py \
   data/tardis/tardis-binance-BTCUSDT-incremental_book_L2-2024-03-01.csv.gz \
-  -o data/tardis/tardis-binance-BTCUSDT-bbo-2024-03-01.csv
+  -o data/tardis/tardis-binance-BTCUSDT-depth5-2024-03-01.csv
 
-python3 scripts/tardis_to_bookticker.py \
+python3 scripts/tardis_to_depth5.py \
   data/tardis/tardis-binance-ETHUSDT-incremental_book_L2-2024-03-01.csv.gz \
-  -o data/tardis/tardis-binance-ETHUSDT-bbo-2024-03-01.csv
+  -o data/tardis/tardis-binance-ETHUSDT-depth5-2024-03-01.csv
 
-python3 scripts/tardis_to_bookticker.py \
+python3 scripts/tardis_to_depth5.py \
   data/tardis/tardis-binance-ETHBTC-incremental_book_L2-2024-03-01.csv.gz \
-  -o data/tardis/tardis-binance-ETHBTC-bbo-2024-03-01.csv
+  -o data/tardis/tardis-binance-ETHBTC-depth5-2024-03-01.csv
 ```
 
 Then run the graph engine:
 
 ```bash
 PYTHONPATH=build-release python3 scripts/run_graph_arbitrage.py \
-  --pair BTC/USDT:data/tardis/tardis-binance-BTCUSDT-bbo-2024-03-01.csv \
-  --pair ETH/USDT:data/tardis/tardis-binance-ETHUSDT-bbo-2024-03-01.csv \
-  --pair ETH/BTC:data/tardis/tardis-binance-ETHBTC-bbo-2024-03-01.csv \
+  --pair BTC/USDT:data/tardis/tardis-binance-BTCUSDT-depth5-2024-03-01.csv \
+  --pair ETH/USDT:data/tardis/tardis-binance-ETHUSDT-depth5-2024-03-01.csv \
+  --pair ETH/BTC:data/tardis/tardis-binance-ETHBTC-depth5-2024-03-01.csv \
   --latency-ns 500000 \
   --taker-fee-bps 7.5 \
   --max-adverse-obi 0.2 \
   --min-cycle-edge-bps 0.5
 ```
 
-The converter reconstructs the local book from `incremental_book_L2` rows, skips pre-snapshot diffs, batches rows by `local_timestamp`, and emits a BBO row only when best price or size changes.
+The converter reconstructs the local book from `incremental_book_L2` rows, skips pre-snapshot diffs, batches rows by `local_timestamp`, and emits a Depth-5 row only when the top five levels change. The older `tardis_to_bookticker.py` BBO converter is still available for lightweight L1 experiments.
 
 Recent Tardis spot run:
 
 ```text
-BTCUSDT: 23,766,560 diff rows -> 667,419 BBO rows
-ETHUSDT: 20,236,010 diff rows -> 606,780 BBO rows
-ETHBTC: 1,625,906 diff rows -> 225,029 BBO rows
-GraphEngine replay: 1,499,228 events at ~3M-4M EPS
+BTCUSDT: 23,766,560 diff rows -> 706,777 Depth-5 rows
+ETHUSDT: 20,236,010 diff rows -> 680,105 Depth-5 rows
+ETHBTC: 1,625,906 diff rows -> 392,928 Depth-5 rows
+GraphEngine replay: 1,779,810 events at ~2.28M EPS (median)
 ```
 
-Current best small-grid result on `2024-03-01` Tardis spot BBO:
+Current reference result on `2024-03-01` Tardis spot Depth-5:
 
 ```text
 latency_ns=500000
 taker_fee_bps=1.0
 max_adverse_obi=0.2
 min_cycle_edge_bps=0.5
-PnL=+$106.45
-completed=410
-panic=5
+PnL=+$37.20
+cycles=27
+completed=27
+panic=0
 ```
 
 Run that configuration:
 
 ```bash
 PYTHONPATH=build-release python3 scripts/run_graph_arbitrage.py \
-  --pair BTC/USDT:data/tardis/tardis-binance-BTCUSDT-bbo-2024-03-01.csv \
-  --pair ETH/USDT:data/tardis/tardis-binance-ETHUSDT-bbo-2024-03-01.csv \
-  --pair ETH/BTC:data/tardis/tardis-binance-ETHBTC-bbo-2024-03-01.csv \
+  --pair BTC/USDT:data/tardis/tardis-binance-BTCUSDT-depth5-2024-03-01.csv \
+  --pair ETH/USDT:data/tardis/tardis-binance-ETHUSDT-depth5-2024-03-01.csv \
+  --pair ETH/BTC:data/tardis/tardis-binance-ETHBTC-depth5-2024-03-01.csv \
   --latency-ns 500000 \
   --taker-fee-bps 1.0 \
   --max-adverse-obi 0.2 \
   --min-cycle-edge-bps 0.5 \
-  --summary-csv results/tardis_best_graph_2024-03-01.csv
+  --summary-csv results/tardis_depth5_best_graph_2024-03-01.csv
 ```
 
 ## Performance
 
 Tested locally in a `Release` build on Apple Silicon.
 
-Recent Triangular Arbitrage run (3 assets):
-- Events Processed: `~9,000,000`
-- Atomic Group Attempts: `~56,000`
-- Throughput: `> 4.5M EPS` (Events Per Second) WITH full asynchronous logging active.
-- Async Dropped Records: `0`
-- Final Inventory Risk (Dust): `< $10.00` (Proof of correct fee-aware math).
+Recent Graph Engine runs (Release build on Apple Silicon):
+
+**Depth-5 Tardis (1.77M events)**:
+- Median Throughput: `2.28M EPS`
+- Cycles Detected: `27`
+- Panic Closes: `0`
+- PnL: `+$37.20 USDT`
+
+**L1 bookTicker (9.00M events)**:
+- Median Throughput: `2.95M EPS`
+- Cycles Detected: `81,728`
+- Panic Closes: `64,962`
+- PnL: `+$9,205.05 USDT`
 
 ## Quick Start
 
