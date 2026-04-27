@@ -63,23 +63,38 @@ private:
     double eth_usdt_mid_ {};
 };
 
+class PyBacktestResult {
+public:
+    PyBacktestResult(const lob::MultiAssetBacktestEngine<3U>::Result& result)
+        : wallet_(result.final_portfolio, result.btc_usdt_mid, result.eth_usdt_mid),
+          nav_(result.final_mtm_nav_usdt),
+          inventory_risk_(result.inventory_risk_usdt),
+          events_processed_(result.events_processed),
+          taker_notional_(result.execution.taker_notional),
+          dropped_orders_(result.dropped_pending_orders) {}
+
+    const PyWallet& wallet() const { return wallet_; }
+    double nav() const { return nav_; }
+    double inventory_risk() const { return inventory_risk_; }
+    std::uint64_t events_processed() const { return events_processed_; }
+    double taker_notional() const { return taker_notional_; }
+    std::uint64_t dropped_orders() const { return dropped_orders_; }
+
+private:
+    PyWallet wallet_;
+    double nav_;
+    double inventory_risk_;
+    std::uint64_t events_processed_;
+    double taker_notional_;
+    std::uint64_t dropped_orders_;
+};
+
 class PyTriangularEngine {
 public:
-    PyTriangularEngine() = default;
+    PyTriangularEngine(std::uint64_t latency_ns, double maker_fee_bps, double taker_fee_bps, bool verbose)
+        : latency_ns_(latency_ns), maker_fee_bps_(maker_fee_bps), taker_fee_bps_(taker_fee_bps), verbose_(verbose) {}
 
-    void set_latency_ns(std::uint64_t latency_ns) noexcept {
-        latency_ns_ = latency_ns;
-    }
-
-    void set_fee_rate(double fee_rate) noexcept {
-        fee_rate_bps_ = fee_rate;
-    }
-
-    void set_verbose(bool verbose) noexcept {
-        verbose_ = verbose;
-    }
-
-    [[nodiscard]] PyWallet run(const std::vector<std::string>& file_paths) const {
+    [[nodiscard]] PyBacktestResult run(const std::vector<std::string>& file_paths) const {
         if (file_paths.size() != 3U) {
             throw std::invalid_argument("TriangularEngine.run expects exactly 3 CSV file paths");
         }
@@ -87,7 +102,7 @@ public:
         using Engine = lob::MultiAssetBacktestEngine<3U>;
 
         lob::TriangularArbitrageStrategy strategy {lob::TriangularArbitrageStrategy::Config {
-            .taker_fee_bps = fee_rate_bps_,
+            .taker_fee_bps = taker_fee_bps_,
             .verbose = verbose_,
         }};
 
@@ -96,22 +111,33 @@ public:
             file_paths[1],
             file_paths[2],
         }, Engine::Config {
-            .maker_fee_bps = fee_rate_bps_,
-            .taker_fee_bps = fee_rate_bps_,
+            .maker_fee_bps = maker_fee_bps_,
+            .taker_fee_bps = taker_fee_bps_,
             .latency = Engine::LatencyConfig {
                 .base_latency_ns = latency_ns_,
             },
         }};
 
-        const Engine::Result result = engine.run();
-        return PyWallet {result.final_portfolio, result.btc_usdt_mid, result.eth_usdt_mid};
+        return PyBacktestResult{engine.run()};
     }
 
 private:
     std::uint64_t latency_ns_ {};
-    double fee_rate_bps_ {};
+    double maker_fee_bps_ {};
+    double taker_fee_bps_ {};
     bool verbose_ {};
 };
+
+PyBacktestResult run_triangular(
+    const std::vector<std::string>& file_paths,
+    std::uint64_t latency_ns,
+    double maker_fee_bps,
+    double taker_fee_bps,
+    bool verbose
+) {
+    PyTriangularEngine engine(latency_ns, maker_fee_bps, taker_fee_bps, verbose);
+    return engine.run(file_paths);
+}
 
 }  // namespace
 
@@ -127,15 +153,33 @@ PYBIND11_MODULE(yabe, module) {
         .def("get_nav", &PyWallet::get_nav)
         .def("get_total_inventory_risk", &PyWallet::get_total_inventory_risk);
 
+    py::class_<PyBacktestResult>(module, "BacktestResult")
+        .def_property_readonly("wallet", &PyBacktestResult::wallet)
+        .def_property_readonly("nav", &PyBacktestResult::nav)
+        .def_property_readonly("inventory_risk", &PyBacktestResult::inventory_risk)
+        .def_property_readonly("events_processed", &PyBacktestResult::events_processed)
+        .def_property_readonly("taker_notional", &PyBacktestResult::taker_notional)
+        .def_property_readonly("dropped_orders", &PyBacktestResult::dropped_orders);
+
     py::class_<PyTriangularEngine>(module, "TriangularEngine")
-        .def(py::init<>())
-        .def("set_latency_ns", &PyTriangularEngine::set_latency_ns, py::arg("ns"))
-        .def("set_fee_rate", &PyTriangularEngine::set_fee_rate, py::arg("rate"))
-        .def("set_verbose", &PyTriangularEngine::set_verbose, py::arg("verbose"))
+        .def(py::init<std::uint64_t, double, double, bool>(),
+             py::arg("latency_ns") = 0,
+             py::arg("maker_fee_bps") = 0.0,
+             py::arg("taker_fee_bps") = 0.0,
+             py::arg("verbose") = false)
         .def(
             "run",
             &PyTriangularEngine::run,
             py::arg("file_paths"),
             py::call_guard<py::gil_scoped_release>()
         );
+
+    module.def("run_triangular", &run_triangular,
+               py::arg("file_paths"),
+               py::arg("latency_ns") = 0,
+               py::arg("maker_fee_bps") = 0.0,
+               py::arg("taker_fee_bps") = 0.0,
+               py::arg("verbose") = false,
+               py::call_guard<py::gil_scoped_release>(),
+               "Run a triangular arbitrage backtest.");
 }

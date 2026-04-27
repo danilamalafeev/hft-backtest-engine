@@ -21,7 +21,7 @@ Core modules:
 - `lob::TriangularArbitrageStrategy`: Strategy implementation modeling USDT -> BTC -> ETH -> USDT cycles with bottleneck volume calculation and post-fee threshold checks.
 - `lob::AsyncLogger`: High-throughput background CSV writer for full event-level trace data.
 - `lob::Wallet`: Fee-aware asset inventory state and risk management.
-- `yabe` Python module: Thin `pybind11` binding exposing `TriangularEngine` and final `Wallet` state.
+- `yabe` Python module: Thin `pybind11` binding exposing `run_triangular`, `TriangularEngine`, `BacktestResult`, and final `Wallet` state.
 
 ## Strategy: Triangular Arbitrage
 
@@ -79,37 +79,64 @@ The module is emitted as:
 build-release/yabe.so
 ```
 
-Use it from Python by adding the build directory to `PYTHONPATH`:
+Use it from Python by adding the build directory to `PYTHONPATH`. The high-level research API is `run_triangular(...)`, which behaves like a pure function: input files plus parameters produce a `BacktestResult`.
 
 ```bash
 PYTHONPATH=build-release python3 - <<'PY'
 import yabe
 
-engine = yabe.TriangularEngine()
-engine.set_latency_ns(500_000)
-engine.set_fee_rate(7.5)  # bps, same convention as the C++ CLI
-# engine.set_verbose(True)  # Optional: prints every detected arbitrage window.
-
-wallet = engine.run([
+paths = [
     "data/BTCUSDT-trades-2024-03-05.csv",
     "data/ETHUSDT-trades-2024-03-05.csv",
     "data/ETHBTC-trades-2024-03-05.csv",
-])
+]
+
+result = yabe.run_triangular(
+    paths,
+    latency_ns=500_000,
+    maker_fee_bps=-1.0,
+    taker_fee_bps=7.5,
+    verbose=False,
+)
+
+wallet = result.wallet
 
 print("USDT:", wallet.usdt)
 print("BTC:", wallet.btc)
 print("ETH:", wallet.eth)
-print("NAV:", wallet.get_nav())
-print("Inventory risk:", wallet.get_total_inventory_risk())
+print("NAV:", result.nav)
+print("Inventory risk:", result.inventory_risk)
+print("Events:", result.events_processed)
 PY
 ```
+
+`BacktestResult` exposes:
+- `wallet`
+- `nav`
+- `inventory_risk`
+- `events_processed`
+- `taker_notional`
+- `dropped_orders`
 
 `Wallet.balance(asset_id)` uses the Python-facing wallet ids:
 - `0 = USDT`
 - `1 = BTC`
 - `2 = ETH`
 
-`TriangularEngine.run(...)` is quiet by default and releases the Python GIL while the C++ replay loop is running, so Python threads are not blocked by the hot C++ simulation.
+For advanced use, `TriangularEngine` can also be configured immutably via its constructor:
+
+```python
+engine = yabe.TriangularEngine(
+    latency_ns=500_000,
+    maker_fee_bps=-1.0,
+    taker_fee_bps=7.5,
+    verbose=False,
+)
+
+result = engine.run(paths)
+```
+
+Both `run_triangular(...)` and `TriangularEngine.run(...)` are quiet by default and release the Python GIL while the C++ replay loop is running. This makes threaded parameter sweeps possible, though large CSV replays are also limited by memory bandwidth and page-cache pressure.
 
 ## Latency and OMS Simulation
 
