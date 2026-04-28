@@ -1,19 +1,26 @@
 #include <gtest/gtest.h>
 
 #include <array>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
+#include <string>
 #include <vector>
 
 #include "lob/analytics.hpp"
 #include "lob/csv_parser.hpp"
 #include "lob/dynamic_wallet.hpp"
 #include "lob/event_merger.hpp"
+#include "lob/graph_arbitrage_engine.hpp"
+#include "lob/l2_order_book.hpp"
 #include "lob/l2_depth5_csv_parser.hpp"
+#include "lob/l2_update_csv_parser.hpp"
 #include "lob/multi_asset_backtest_engine.hpp"
 #include "lob/order_book.hpp"
+#include "lob/venue_manifest.hpp"
+#include "lob/venue_replay.hpp"
 
 namespace {
 
@@ -70,6 +77,132 @@ TEST(OrderBookTest, InitializesSuccessfully) {
     (void)order_book;
 
     ASSERT_TRUE(true);
+}
+
+TEST(L2OrderBookTest, MaintainsBidAndAskSortOrder) {
+    lob::L2OrderBook book {8U};
+
+    book.update_level(true, 99.0, 1.0);
+    book.update_level(true, 101.0, 2.0);
+    book.update_level(true, 100.0, 3.0);
+    book.update_level(false, 103.0, 4.0);
+    book.update_level(false, 101.0, 5.0);
+    book.update_level(false, 102.0, 6.0);
+
+    ASSERT_EQ(book.bids().size(), 3U);
+    EXPECT_DOUBLE_EQ(book.bids()[0].price, 101.0);
+    EXPECT_DOUBLE_EQ(book.bids()[1].price, 100.0);
+    EXPECT_DOUBLE_EQ(book.bids()[2].price, 99.0);
+
+    ASSERT_EQ(book.asks().size(), 3U);
+    EXPECT_DOUBLE_EQ(book.asks()[0].price, 101.0);
+    EXPECT_DOUBLE_EQ(book.asks()[1].price, 102.0);
+    EXPECT_DOUBLE_EQ(book.asks()[2].price, 103.0);
+}
+
+TEST(L2OrderBookTest, UpdatesAndRemovesLevels) {
+    lob::L2OrderBook book {8U};
+
+    book.update_level(true, 100.0, 5.0);
+    book.deplete_level(true, 100.0, 2.0);
+    EXPECT_DOUBLE_EQ(book.effective_qty(true, 100.0), 3.0);
+
+    book.update_level(true, 100.0, 1.0);
+    ASSERT_EQ(book.bids().size(), 1U);
+    EXPECT_DOUBLE_EQ(book.bids()[0].qty, 1.0);
+    EXPECT_DOUBLE_EQ(book.bids()[0].depleted_qty, 1.0);
+    EXPECT_DOUBLE_EQ(book.effective_qty(true, 100.0), 0.0);
+
+    book.update_level(true, 100.0, 0.0);
+    EXPECT_TRUE(book.bids().empty());
+    EXPECT_DOUBLE_EQ(book.effective_qty(true, 100.0), 0.0);
+}
+
+TEST(L2OrderBookTest, AllowsSimulatedDepletionBeyondVisibleQuantityUntilFeedRefresh) {
+    lob::L2OrderBook book {8U};
+
+    book.update_level(false, 101.0, 5.0);
+    book.deplete_level(false, 101.0, 8.0);
+
+    ASSERT_EQ(book.asks().size(), 1U);
+    EXPECT_DOUBLE_EQ(book.asks()[0].depleted_qty, 8.0);
+    EXPECT_DOUBLE_EQ(book.effective_qty(false, 101.0), 0.0);
+
+    book.update_level(false, 101.0, 6.0);
+    EXPECT_DOUBLE_EQ(book.asks()[0].depleted_qty, 6.0);
+    EXPECT_DOUBLE_EQ(book.effective_qty(false, 101.0), 0.0);
+}
+
+TEST(L2OrderBookTest, EnforcesCapacityByDroppingDeepLevels) {
+    lob::L2OrderBook book {3U};
+
+    book.update_level(true, 100.0, 1.0);
+    book.update_level(true, 99.0, 1.0);
+    book.update_level(true, 98.0, 1.0);
+    book.update_level(true, 97.0, 1.0);
+
+    ASSERT_EQ(book.bids().size(), 3U);
+    EXPECT_DOUBLE_EQ(book.bids()[0].price, 100.0);
+    EXPECT_DOUBLE_EQ(book.bids()[1].price, 99.0);
+    EXPECT_DOUBLE_EQ(book.bids()[2].price, 98.0);
+
+    book.update_level(true, 101.0, 1.0);
+    ASSERT_EQ(book.bids().size(), 3U);
+    EXPECT_DOUBLE_EQ(book.bids()[0].price, 101.0);
+    EXPECT_DOUBLE_EQ(book.bids()[1].price, 100.0);
+    EXPECT_DOUBLE_EQ(book.bids()[2].price, 99.0);
+
+    book.update_level(false, 101.0, 1.0);
+    book.update_level(false, 102.0, 1.0);
+    book.update_level(false, 103.0, 1.0);
+    book.update_level(false, 104.0, 1.0);
+
+    ASSERT_EQ(book.asks().size(), 3U);
+    EXPECT_DOUBLE_EQ(book.asks()[0].price, 101.0);
+    EXPECT_DOUBLE_EQ(book.asks()[1].price, 102.0);
+    EXPECT_DOUBLE_EQ(book.asks()[2].price, 103.0);
+
+    book.update_level(false, 100.0, 1.0);
+    ASSERT_EQ(book.asks().size(), 3U);
+    EXPECT_DOUBLE_EQ(book.asks()[0].price, 100.0);
+    EXPECT_DOUBLE_EQ(book.asks()[1].price, 101.0);
+    EXPECT_DOUBLE_EQ(book.asks()[2].price, 102.0);
+}
+
+TEST(L2OrderBookTest, AppliesSnapshotByClearingBothSides) {
+    lob::L2OrderBook book {8U};
+    book.update_level(true, 100.0, 1.0);
+    book.update_level(false, 101.0, 1.0);
+
+    book.apply_update(lob::L2UpdateEvent {
+        .timestamp_ns = 10U,
+        .is_snapshot = true,
+        .is_bid = true,
+        .price = 99.0,
+        .qty = 2.0,
+    });
+
+    ASSERT_EQ(book.bids().size(), 1U);
+    EXPECT_DOUBLE_EQ(book.bids()[0].price, 99.0);
+    EXPECT_TRUE(book.asks().empty());
+}
+
+TEST(L2OrderBookTest, RemovesLevelsNotPresentInSnapshotWithoutClearingRetainedDepletion) {
+    lob::L2OrderBook book {8U};
+    book.update_level(true, 101.0, 3.0);
+    book.update_level(true, 100.0, 5.0);
+    book.update_level(true, 99.0, 7.0);
+    book.deplete_level(true, 100.0, 2.0);
+
+    const std::array<double, 2U> retained_prices {101.0, 100.0};
+    book.remove_levels_not_in(true, retained_prices);
+
+    ASSERT_EQ(book.bids().size(), 2U);
+    EXPECT_DOUBLE_EQ(book.bids()[0].price, 101.0);
+    EXPECT_DOUBLE_EQ(book.bids()[0].depleted_qty, 0.0);
+    EXPECT_DOUBLE_EQ(book.bids()[1].price, 100.0);
+    EXPECT_DOUBLE_EQ(book.bids()[1].depleted_qty, 2.0);
+    EXPECT_DOUBLE_EQ(book.effective_qty(true, 99.0), 0.0);
 }
 
 TEST(DynamicWalletTest, TracksReservedAndFreeBalances) {
@@ -404,6 +537,106 @@ TEST(L2Depth5CsvParserTest, StreamsDepth5RowsAndBackfillsBboRows) {
     std::filesystem::remove(bbo_path);
 }
 
+TEST(L2UpdateCsvParserTest, StreamsRawL2UpdatesAndBooleanFormats) {
+    const std::filesystem::path update_path = std::filesystem::temp_directory_path() / "lob_l2_update_parser_test.csv";
+    {
+        std::ofstream csv {update_path};
+        csv << "timestamp,is_snapshot,is_bid,price,qty\n"
+            << "1000,1,true,99.5,2.25\n"
+            << "1000,false,0,100.5,0\n";
+    }
+
+    lob::L2UpdateCsvParser parser {update_path};
+    ASSERT_TRUE(parser.has_next());
+    const lob::L2UpdateEvent& first_event = parser.peek();
+    EXPECT_EQ(first_event.timestamp_ns, 1000U);
+    EXPECT_TRUE(first_event.is_snapshot);
+    EXPECT_TRUE(first_event.is_bid);
+    EXPECT_DOUBLE_EQ(first_event.price, 99.5);
+    EXPECT_DOUBLE_EQ(first_event.qty, 2.25);
+
+    parser.advance();
+    ASSERT_TRUE(parser.has_next());
+    const lob::L2UpdateEvent& second_event = parser.peek();
+    EXPECT_EQ(second_event.timestamp_ns, 1000U);
+    EXPECT_FALSE(second_event.is_snapshot);
+    EXPECT_FALSE(second_event.is_bid);
+    EXPECT_DOUBLE_EQ(second_event.price, 100.5);
+    EXPECT_DOUBLE_EQ(second_event.qty, 0.0);
+
+    parser.advance();
+    EXPECT_FALSE(parser.has_next());
+    std::filesystem::remove(update_path);
+}
+
+TEST(VenueReplayTest, RejectsSequenceGapsAndReorderingPerProduct) {
+    lob::ReplaySequenceValidator validator {};
+    lob::FeedEnvelope first {
+        .venue_id = 1U,
+        .product_id = 10U,
+        .sequence = 100U,
+        .snapshot_epoch = 1U,
+    };
+    lob::FeedEnvelope second = first;
+    second.sequence = 101U;
+    lob::FeedEnvelope gap = first;
+    gap.sequence = 103U;
+    lob::FeedEnvelope reordered = first;
+    reordered.sequence = 100U;
+
+    EXPECT_EQ(validator.validate(first), lob::ReplayValidationStatus::Accepted);
+    EXPECT_EQ(validator.validate(second), lob::ReplayValidationStatus::Accepted);
+    EXPECT_EQ(validator.validate(gap), lob::ReplayValidationStatus::SequenceGap);
+    EXPECT_EQ(validator.validate(reordered), lob::ReplayValidationStatus::SequenceReorder);
+}
+
+TEST(VenueReplayTest, AcceptsNewSnapshotEpochForSameProduct) {
+    lob::ReplaySequenceValidator validator {};
+    lob::FeedEnvelope first {
+        .venue_id = 1U,
+        .product_id = 10U,
+        .sequence = 100U,
+        .snapshot_epoch = 1U,
+    };
+    lob::FeedEnvelope new_epoch = first;
+    new_epoch.sequence = 1U;
+    new_epoch.snapshot_epoch = 2U;
+
+    EXPECT_EQ(validator.validate(first), lob::ReplayValidationStatus::Accepted);
+    EXPECT_EQ(validator.validate(new_epoch), lob::ReplayValidationStatus::Accepted);
+}
+
+TEST(VenueManifestTest, DescribesVenueProductScalesAndCosts) {
+    lob::VenueManifest manifest {};
+    manifest.assets.push_back(lob::AssetManifestEntry {
+        .asset_id = 0U,
+        .symbol = "USDC",
+        .settlement_domain_id = 1U,
+    });
+    manifest.cost_models.push_back(lob::CostModelManifestEntry {
+        .cost_model_id = 1U,
+        .kind = lob::CostModelKind::Proportional,
+        .proportional_fee_bps = 7.5,
+    });
+    manifest.products.push_back(lob::ProductManifestEntry {
+        .product_id = 42U,
+        .venue_id = 2U,
+        .kind = lob::ProductKind::PredictionMarketOutcome,
+        .symbol = "EVENT-YES",
+        .base_asset_id = 1U,
+        .quote_asset_id = 0U,
+        .price_tick_scale = 100,
+        .qty_lot_scale = 1'000'000,
+        .cost_model_id = 1U,
+        .settlement_domain_id = 1U,
+    });
+
+    ASSERT_EQ(manifest.products.size(), 1U);
+    EXPECT_EQ(manifest.products[0].product_id, 42U);
+    EXPECT_EQ(manifest.products[0].price_tick_scale, 100);
+    EXPECT_EQ(manifest.cost_models[0].proportional_fee_bps, 7.5);
+}
+
 TEST(EventMergerTest, MergesSmallStreamSetWithFastPath) {
     using Parser = FakeStreamParser<3U>;
     lob::EventMerger<3U, Parser> merger {std::array<Parser, 3U> {
@@ -454,6 +687,334 @@ TEST(MultiAssetBacktestEngineTest, RoutesMergedEventsToAssetBooksAndStrategy) {
     EXPECT_EQ(result.events_processed, 4U);
     EXPECT_EQ(strategy.ticks_by_asset_[0], 2U);
     EXPECT_EQ(strategy.ticks_by_asset_[1], 2U);
+}
+
+TEST(GraphArbitrageEngineTest, DetectsAndExecutesNegativeCycleThroughL2OrderBook) {
+    const std::filesystem::path btc_usdt_path = std::filesystem::temp_directory_path() / "btc_usdt_graph_test.csv";
+    const std::filesystem::path eth_usdt_path = std::filesystem::temp_directory_path() / "eth_usdt_graph_test.csv";
+    const std::filesystem::path eth_btc_path = std::filesystem::temp_directory_path() / "eth_btc_graph_test.csv";
+
+    {
+        std::ofstream csv {btc_usdt_path};
+        csv << "timestamp,is_snapshot,is_bid,price,qty\n"
+            << "1000,1,1,49900,10\n"
+            << "1000,1,0,50000,10\n"
+            << "2000,1,1,49900,10\n"
+            << "2000,1,0,50000,10\n";
+    }
+    {
+        std::ofstream csv {eth_usdt_path};
+        csv << "timestamp,is_snapshot,is_bid,price,qty\n"
+            << "1000,1,1,2900,100\n"
+            << "1000,1,0,3000,100\n"
+            << "2000,1,1,2900,100\n"
+            << "2000,1,0,3000,100\n";
+    }
+    {
+        std::ofstream csv {eth_btc_path};
+        csv << "timestamp,is_snapshot,is_bid,price,qty\n"
+            << "1000,1,1,0.049,100\n"
+            << "1000,1,0,0.050,100\n"
+            << "2000,1,1,0.049,100\n"
+            << "2000,1,0,0.050,100\n";
+    }
+
+    lob::GraphArbitrageEngine::Config config {
+        .initial_usdt = 100'000.0,
+        .quote_asset = "USDT",
+        .latency_ns = 0U,
+        .intra_leg_latency_ns = 0U,
+        .taker_fee_bps = 0.0,
+        .max_cycle_notional_usdt = 10'000.0,
+        .max_adverse_obi = 1.0,
+        .max_spread_bps = 10'000.0,
+        .min_depth_usdt = 0.0,
+        .min_cycle_edge_bps = 0.0,
+        .cycle_snapshot_reserve = 100U,
+    };
+
+    lob::GraphArbitrageEngine engine {config};
+    engine.add_pair("BTC", "USDT", btc_usdt_path.string());
+    engine.add_pair("ETH", "USDT", eth_usdt_path.string());
+    engine.add_pair("ETH", "BTC", eth_btc_path.string());
+
+    const lob::GraphArbitrageEngine::Result result = engine.run();
+
+    EXPECT_EQ(result.events_processed, 12U);
+    EXPECT_EQ(result.market_batches_processed, 2U);
+    EXPECT_EQ(result.cycle_searches, 2U);
+    EXPECT_GT(result.completed_cycles, 0U);
+    EXPECT_GT(result.final_nav, 100'000.0);
+
+    std::filesystem::remove(btc_usdt_path);
+    std::filesystem::remove(eth_usdt_path);
+    std::filesystem::remove(eth_btc_path);
+}
+
+TEST(GraphArbitrageEngineTest, MaxBookLevelsPerSideCapsDepthUsedByGraph) {
+    const auto run_with_cap = [](std::size_t max_levels_per_side) {
+        const std::filesystem::path ausdt_path = std::filesystem::temp_directory_path() /
+            ("ausdt_depth_cap_test_" + std::to_string(max_levels_per_side) + ".csv");
+        const std::filesystem::path ba_path = std::filesystem::temp_directory_path() /
+            ("ba_depth_cap_test_" + std::to_string(max_levels_per_side) + ".csv");
+        const std::filesystem::path busdt_path = std::filesystem::temp_directory_path() /
+            ("busdt_depth_cap_test_" + std::to_string(max_levels_per_side) + ".csv");
+
+        {
+            std::ofstream csv {ausdt_path};
+            csv << "timestamp,is_snapshot,is_bid,price,qty\n"
+                << "1000,1,1,9,1\n"
+                << "1000,1,1,8.9,100\n"
+                << "1000,1,0,10,1\n"
+                << "1000,1,0,10.1,100\n";
+        }
+        {
+            std::ofstream csv {ba_path};
+            csv << "timestamp,is_snapshot,is_bid,price,qty\n"
+                << "1000,1,1,1.9,1\n"
+                << "1000,1,1,1.8,100\n"
+                << "1000,1,0,2,1\n"
+                << "1000,1,0,2.01,100\n";
+        }
+        {
+            std::ofstream csv {busdt_path};
+            csv << "timestamp,is_snapshot,is_bid,price,qty\n"
+                << "1000,1,1,25,1\n"
+                << "1000,1,1,24.9,100\n"
+                << "1000,1,0,26,1\n"
+                << "1000,1,0,26.1,100\n";
+        }
+
+        lob::GraphArbitrageEngine::Config config {
+            .initial_usdt = 100'000.0,
+            .quote_asset = "USDT",
+            .latency_ns = 0U,
+            .intra_leg_latency_ns = 0U,
+            .taker_fee_bps = 0.0,
+            .max_cycle_notional_usdt = 1'000.0,
+            .max_adverse_obi = 1.0,
+            .max_spread_bps = 100'000.0,
+            .min_depth_usdt = 500.0,
+            .min_cycle_edge_bps = 0.0,
+            .cycle_snapshot_reserve = 100U,
+            .max_book_levels_per_side = max_levels_per_side,
+        };
+
+        lob::GraphArbitrageEngine engine {config};
+        engine.add_pair("A", "USDT", ausdt_path.string());
+        engine.add_pair("B", "A", ba_path.string());
+        engine.add_pair("B", "USDT", busdt_path.string());
+
+        const lob::GraphArbitrageEngine::Result result = engine.run();
+
+        std::filesystem::remove(ausdt_path);
+        std::filesystem::remove(ba_path);
+        std::filesystem::remove(busdt_path);
+        return result;
+    };
+
+    const lob::GraphArbitrageEngine::Result capped_top_level = run_with_cap(1U);
+    const lob::GraphArbitrageEngine::Result capped_two_levels = run_with_cap(2U);
+
+    EXPECT_EQ(capped_top_level.completed_cycles, 0U);
+    EXPECT_GT(capped_two_levels.completed_cycles, 0U);
+}
+
+TEST(GraphArbitrageEngineTest, SparseLookupEngineMatchesDenseEngineOnL2Scenario) {
+    const auto run_engine = []<typename Engine>(const std::string& suffix) {
+        const std::filesystem::path btc_usdt_path = std::filesystem::temp_directory_path() /
+            ("btc_usdt_sparse_match_" + suffix + ".csv");
+        const std::filesystem::path eth_usdt_path = std::filesystem::temp_directory_path() /
+            ("eth_usdt_sparse_match_" + suffix + ".csv");
+        const std::filesystem::path eth_btc_path = std::filesystem::temp_directory_path() /
+            ("eth_btc_sparse_match_" + suffix + ".csv");
+
+        {
+            std::ofstream csv {btc_usdt_path};
+            csv << "timestamp,is_snapshot,is_bid,price,qty\n"
+                << "1000,1,1,49900,10\n"
+                << "1000,1,0,50000,10\n"
+                << "2000,0,1,49910,10\n"
+                << "2000,0,0,50010,10\n";
+        }
+        {
+            std::ofstream csv {eth_usdt_path};
+            csv << "timestamp,is_snapshot,is_bid,price,qty\n"
+                << "1000,1,1,2900,100\n"
+                << "1000,1,0,3000,100\n"
+                << "2000,0,1,2910,100\n"
+                << "2000,0,0,3010,100\n";
+        }
+        {
+            std::ofstream csv {eth_btc_path};
+            csv << "timestamp,is_snapshot,is_bid,price,qty\n"
+                << "1000,1,1,0.049,100\n"
+                << "1000,1,0,0.050,100\n"
+                << "2000,0,1,0.049,100\n"
+                << "2000,0,0,0.050,100\n";
+        }
+
+        typename Engine::Config config {
+            .initial_usdt = 100'000.0,
+            .quote_asset = "USDT",
+            .latency_ns = 0U,
+            .intra_leg_latency_ns = 0U,
+            .taker_fee_bps = 0.0,
+            .max_cycle_notional_usdt = 10'000.0,
+            .max_adverse_obi = 1.0,
+            .max_spread_bps = 10'000.0,
+            .min_depth_usdt = 0.0,
+            .min_cycle_edge_bps = 0.0,
+            .cycle_snapshot_reserve = 100U,
+            .max_book_levels_per_side = 20U,
+        };
+
+        Engine engine {config};
+        engine.add_pair("BTC", "USDT", btc_usdt_path.string());
+        engine.add_pair("ETH", "USDT", eth_usdt_path.string());
+        engine.add_pair("ETH", "BTC", eth_btc_path.string());
+
+        const auto result = engine.run();
+
+        std::filesystem::remove(btc_usdt_path);
+        std::filesystem::remove(eth_usdt_path);
+        std::filesystem::remove(eth_btc_path);
+        return result;
+    };
+
+    const auto dense = run_engine.template operator()<lob::GraphArbitrageEngine>("dense");
+    const auto sparse = run_engine.template operator()<lob::GraphArbitrageEngineLarge>("sparse");
+
+    EXPECT_EQ(sparse.events_processed, dense.events_processed);
+    EXPECT_EQ(sparse.cycles_detected, dense.cycles_detected);
+    EXPECT_EQ(sparse.completed_cycles, dense.completed_cycles);
+    EXPECT_EQ(sparse.panic_closes, dense.panic_closes);
+    EXPECT_NEAR(sparse.final_nav, dense.final_nav, 1e-9);
+}
+
+TEST(GraphArbitrageEngineTest, DetectsCompletedCycleRegardlessOfL2UpdateOrder) {
+    struct PairFile {
+        const char* key;
+        const char* base;
+        const char* quote;
+        double bid;
+        double ask;
+        double qty;
+    };
+
+    const std::array<PairFile, 3U> pairs {{
+        {"AUSDT", "A", "USDT", 9.0, 10.0, 100.0},
+        {"BA", "B", "A", 1.9, 2.0, 100.0},
+        {"BUSDT", "B", "USDT", 25.0, 26.0, 100.0},
+    }};
+    const std::array<std::array<const char*, 3U>, 3U> update_orders {{
+        {{"AUSDT", "BA", "BUSDT"}},
+        {{"BUSDT", "BA", "AUSDT"}},
+        {{"BA", "BUSDT", "AUSDT"}},
+    }};
+
+    for (std::size_t order_index = 0U; order_index < update_orders.size(); ++order_index) {
+        std::array<std::filesystem::path, 3U> paths {};
+        for (std::size_t pair_index = 0U; pair_index < pairs.size(); ++pair_index) {
+            paths[pair_index] = std::filesystem::temp_directory_path() /
+                ("graph_order_repro_" + std::to_string(order_index) + "_" + pairs[pair_index].key + ".csv");
+
+            std::uint64_t timestamp = 0U;
+            for (std::size_t update_index = 0U; update_index < update_orders[order_index].size(); ++update_index) {
+                if (std::string {update_orders[order_index][update_index]} == pairs[pair_index].key) {
+                    timestamp = 1000U + static_cast<std::uint64_t>(update_index) * 1000U;
+                    break;
+                }
+            }
+
+            std::ofstream csv {paths[pair_index]};
+            csv << "timestamp,is_snapshot,is_bid,price,qty\n"
+                << timestamp << ",1,1," << pairs[pair_index].bid << "," << pairs[pair_index].qty << "\n"
+                << timestamp << ",1,0," << pairs[pair_index].ask << "," << pairs[pair_index].qty << "\n";
+        }
+
+        lob::GraphArbitrageEngine::Config config {
+            .initial_usdt = 100'000.0,
+            .quote_asset = "USDT",
+            .latency_ns = 0U,
+            .intra_leg_latency_ns = 0U,
+            .taker_fee_bps = 0.0,
+            .max_cycle_notional_usdt = 1'000.0,
+            .max_adverse_obi = 1.0,
+            .max_spread_bps = 100'000.0,
+            .min_depth_usdt = 0.0,
+            .min_cycle_edge_bps = 0.0,
+            .cycle_snapshot_reserve = 100U,
+        };
+
+        lob::GraphArbitrageEngine engine {config};
+        for (std::size_t pair_index = 0U; pair_index < pairs.size(); ++pair_index) {
+            engine.add_pair(pairs[pair_index].base, pairs[pair_index].quote, paths[pair_index].string());
+        }
+
+        const lob::GraphArbitrageEngine::Result result = engine.run();
+
+        EXPECT_GT(result.completed_cycles, 0U) << "order_index=" << order_index;
+        EXPECT_GT(result.final_nav, config.initial_usdt) << "order_index=" << order_index;
+
+        for (const auto& path : paths) {
+            std::filesystem::remove(path);
+        }
+    }
+}
+
+TEST(GraphArbitrageEngineTest, RevalidatesVisibleDepthAtPendingLegExecution) {
+    const std::filesystem::path ausdt_path = std::filesystem::temp_directory_path() / "ausdt_stale_depth_test.csv";
+    const std::filesystem::path ba_path = std::filesystem::temp_directory_path() / "ba_stale_depth_test.csv";
+    const std::filesystem::path busdt_path = std::filesystem::temp_directory_path() / "busdt_stale_depth_test.csv";
+
+    {
+        std::ofstream csv {ausdt_path};
+        csv << "timestamp,is_snapshot,is_bid,price,qty\n"
+            << "1000,1,1,9,100\n"
+            << "1000,1,0,10,100\n";
+    }
+    {
+        std::ofstream csv {ba_path};
+        csv << "timestamp,is_snapshot,is_bid,price,qty\n"
+            << "1000,1,1,1.9,100\n"
+            << "1000,1,0,2,100\n";
+    }
+    {
+        std::ofstream csv {busdt_path};
+        csv << "timestamp,is_snapshot,is_bid,price,qty\n"
+            << "1000,1,1,25,100\n"
+            << "1000,1,0,26,100\n"
+            << "1050,0,1,25,10\n";
+    }
+
+    lob::GraphArbitrageEngine::Config config {
+        .initial_usdt = 100'000.0,
+        .quote_asset = "USDT",
+        .latency_ns = 100'000'000U,
+        .intra_leg_latency_ns = 0U,
+        .taker_fee_bps = 0.0,
+        .max_cycle_notional_usdt = 1'000.0,
+        .max_adverse_obi = 1.0,
+        .max_spread_bps = 100'000.0,
+        .min_depth_usdt = 500.0,
+        .min_cycle_edge_bps = 0.0,
+        .cycle_snapshot_reserve = 100U,
+    };
+
+    lob::GraphArbitrageEngine engine {config};
+    engine.add_pair("A", "USDT", ausdt_path.string());
+    engine.add_pair("B", "A", ba_path.string());
+    engine.add_pair("B", "USDT", busdt_path.string());
+
+    const lob::GraphArbitrageEngine::Result result = engine.run();
+
+    EXPECT_EQ(result.completed_cycles, 0U);
+    EXPECT_GT(result.panic_closes, 0U);
+
+    std::filesystem::remove(ausdt_path);
+    std::filesystem::remove(ba_path);
+    std::filesystem::remove(busdt_path);
 }
 
 }  // namespace

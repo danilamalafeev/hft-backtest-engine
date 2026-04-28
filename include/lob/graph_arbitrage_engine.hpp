@@ -15,11 +15,14 @@
 
 #include "lob/event.hpp"
 #include "lob/dynamic_wallet.hpp"
-#include "lob/l2_depth5_csv_parser.hpp"
+#include "lob/l2_order_book.hpp"
+#include "lob/l2_update_csv_parser.hpp"
+#include "lob/lookup_policy.hpp"
 
 namespace lob {
 
-class GraphArbitrageEngine {
+template <typename LookupPolicy>
+class GraphArbitrageEngineT {
 public:
     static constexpr std::size_t kMaxGraphLegs = 16U;
 
@@ -35,6 +38,7 @@ public:
         double min_depth_usdt {0.0};
         double min_cycle_edge_bps {0.0};
         std::size_t cycle_snapshot_reserve {100'000U};
+        std::size_t max_book_levels_per_side {100U};
     };
 
     struct PairConfig {
@@ -46,10 +50,7 @@ public:
     struct PairState {
         AssetID base_id {};
         AssetID quote_id {};
-        std::array<double, L2Depth5Event::Depth> bid_prices {};
-        std::array<double, L2Depth5Event::Depth> bid_qty {};
-        std::array<double, L2Depth5Event::Depth> ask_prices {};
-        std::array<double, L2Depth5Event::Depth> ask_qty {};
+        L2OrderBook book {};
         double obi {};
         double micro_price {};
         double spread_bps {};
@@ -70,6 +71,8 @@ public:
         std::uint64_t attempted_cycles {};
         std::uint64_t completed_cycles {};
         std::uint64_t panic_closes {};
+        std::uint64_t market_batches_processed {};
+        std::uint64_t cycle_searches {};
         double initial_usdt {100'000'000.0};
         double final_usdt {100'000'000.0};
         double final_nav {100'000'000.0};
@@ -80,13 +83,13 @@ public:
         std::uint64_t cycle_snapshots_overwritten {};
     };
 
-    GraphArbitrageEngine()
+    GraphArbitrageEngineT()
         : config_(Config {}) {}
 
-    explicit GraphArbitrageEngine(Config config)
+    explicit GraphArbitrageEngineT(Config config)
         : config_(config) {}
 
-    GraphArbitrageEngine(
+    GraphArbitrageEngineT(
         double initial_usdt,
         std::uint64_t latency_ns,
         std::uint64_t intra_leg_latency_ns,
@@ -117,6 +120,7 @@ public:
         pair_states_.push_back(PairState {
             .base_id = base_id,
             .quote_id = quote_id,
+            .book = L2OrderBook {config_.max_book_levels_per_side},
         });
         return pair_id;
     }
@@ -135,7 +139,7 @@ public:
             process_next_market_event(result);
         }
 
-        rebuild_edges();
+        refresh_all_edges();
         result.final_usdt = wallet_.balance(quote_asset_id_);
         result.final_nav = wallet_.mark_to_market_nav(edges_, config_.taker_fee_bps);
         result.inventory_risk = wallet_.get_total_inventory_risk(edges_, config_.taker_fee_bps);
@@ -165,12 +169,6 @@ private:
         double effective_rate {};
     };
 
-    struct DepletionState {
-        std::uint64_t last_update_ns {};
-        std::array<double, L2Depth5Event::Depth> bid_depleted_qty {};
-        std::array<double, L2Depth5Event::Depth> ask_depleted_qty {};
-    };
-
     struct PendingCycle {
         std::uint64_t release_time_ns {};
         std::uint8_t leg_count {};
@@ -179,6 +177,8 @@ private:
         AssetID current_asset {};
         double initial_quantity {};
         std::array<AssetID, kMaxGraphLegs + 1U> assets {};
+        std::array<double, kMaxGraphLegs> expected_rates {};
+        std::array<double, kMaxGraphLegs> leg_outputs {};
     };
 
     struct ParserEvent {
@@ -313,6 +313,10 @@ private:
     }
 
     void prepare_runtime() {
+        if (config_.max_book_levels_per_side == 0U) {
+            throw std::invalid_argument("GraphArbitrageEngine max_book_levels_per_side must be greater than zero");
+        }
+
         parsers_.clear();
         parsers_.reserve(pairs_.size());
         for (const PairConfig& pair : pairs_) {
@@ -324,21 +328,35 @@ private:
         rates_.assign(asset_count, 1.0);
         predecessors_.assign(asset_count, 0U);
         predecessor_edges_.assign(asset_count, 0U);
-        relax_counts_.assign(asset_count, 0U);
-        in_queue_.assign(asset_count, 0U);
-        spfa_queue_.assign(asset_count == 0U ? 1U : asset_count, 0U);
         adjacency_edges_.assign(asset_count, {});
-        for (auto& adjacent_edges : adjacency_edges_) {
-            adjacent_edges.reserve(pairs_.size() * 2U);
+        lookup_.init(asset_count, pairs_.size());
+        std::vector<std::size_t> outgoing_counts(asset_count, 0U);
+        for (AssetID pair_id = 0U; pair_id < pair_states_.size(); ++pair_id) {
+            const PairState& pair = pair_states_[pair_id];
+            if (pair.base_id < outgoing_counts.size()) {
+                ++outgoing_counts[pair.base_id];
+            }
+            if (pair.quote_id < outgoing_counts.size()) {
+                ++outgoing_counts[pair.quote_id];
+            }
+            set_route(pair.base_id, pair.quote_id, pair_id, true);
+            set_route(pair.quote_id, pair.base_id, pair_id, false);
+        }
+        lookup_.finalize_routes();
+        for (AssetID vertex = 0U; vertex < asset_count; ++vertex) {
+            adjacency_edges_[vertex].reserve(outgoing_counts[vertex]);
         }
         cycle_.clear();
         cycle_.reserve(asset_count + 1U);
         wallet_.reset(asset_count, quote_asset_id_, config_.initial_usdt);
         edges_.clear();
         edges_.reserve(pairs_.size() * 2U);
-        depletion_ledger_.assign(pair_states_.size(), DepletionState {});
+        build_static_edges();
+        refresh_all_edges();
         pending_cycles_ = PendingMinHeap<PendingCycle, kPendingCycleCapacity> {};
         cycle_snapshots_.reset(config_.cycle_snapshot_reserve);
+        snapshot_clear_times_.assign(pair_states_.size(), 0U);
+        snapshot_clear_valid_.assign(pair_states_.size(), 0U);
         parser_events_.clear();
         parser_events_.reserve(parsers_.size());
         for (std::size_t index = 0U; index < parsers_.size(); ++index) {
@@ -367,22 +385,22 @@ private:
         return !has_next_event() || pending_cycles_.top().release_time_ns <= parser_events_.front().release_time_ns;
     }
 
-    [[nodiscard]] AssetID next_pair_index() const {
+    [[nodiscard]] AssetID next_pair_index() const noexcept {
         if (parser_events_.empty()) {
-            throw std::out_of_range("GraphArbitrageEngine has no remaining events");
+            return std::numeric_limits<AssetID>::max();
         }
         return parser_events_.front().pair_id;
     }
 
-    [[nodiscard]] std::uint64_t next_event_time() const {
+    [[nodiscard]] std::uint64_t next_event_time() const noexcept {
         if (parser_events_.empty()) {
-            throw std::out_of_range("GraphArbitrageEngine has no remaining events");
+            return std::numeric_limits<std::uint64_t>::max();
         }
         return parser_events_.front().release_time_ns;
     }
 
     void push_parser_event_if_available(AssetID pair_id) {
-        L2Depth5CsvParser& parser = parsers_[pair_id];
+        L2UpdateCsvParser& parser = parsers_[pair_id];
         if (!parser.has_next()) {
             return;
         }
@@ -393,9 +411,9 @@ private:
         std::push_heap(parser_events_.begin(), parser_events_.end(), ParserEventGreater {});
     }
 
-    [[nodiscard]] ParserEvent pop_parser_event() {
+    [[nodiscard]] ParserEvent pop_parser_event() noexcept {
         if (parser_events_.empty()) {
-            throw std::out_of_range("GraphArbitrageEngine has no remaining events");
+            return ParserEvent {};
         }
         std::pop_heap(parser_events_.begin(), parser_events_.end(), ParserEventGreater {});
         ParserEvent event = parser_events_.back();
@@ -403,50 +421,54 @@ private:
         return event;
     }
 
-    void process_next_market_event(Result& result) {
-        const ParserEvent parser_event = pop_parser_event();
-        L2Depth5CsvParser& parser = parsers_[parser_event.pair_id];
-        const L2Depth5Event& event = parser.peek();
-        current_time_ns_ = normalize_timestamp_ns(event.timestamp);
-        apply_event(parser_event.pair_id, event);
-        ++result.events_processed;
-        parser.advance();
-        push_parser_event_if_available(parser_event.pair_id);
+    void process_next_market_event(Result& result) noexcept {
+        const std::uint64_t batch_time_ns = next_event_time();
+        if (batch_time_ns == std::numeric_limits<std::uint64_t>::max()) {
+            return;
+        }
+        current_time_ns_ = batch_time_ns;
 
+        do {
+            const ParserEvent parser_event = pop_parser_event();
+            L2UpdateCsvParser& parser = parsers_[parser_event.pair_id];
+            const L2UpdateEvent& event = parser.peek();
+
+            apply_event(parser_event.pair_id, event);
+            ++result.events_processed;
+            parser.advance();
+            push_parser_event_if_available(parser_event.pair_id);
+        } while (has_next_event() && parser_events_.front().release_time_ns == batch_time_ns);
+
+        ++result.market_batches_processed;
+        ++result.cycle_searches;
         if (find_negative_cycle()) {
             ++result.cycles_detected;
             enqueue_cycle(result);
         }
     }
 
-    void apply_event(AssetID pair_id, const L2Depth5Event& event) noexcept {
+    void apply_event(AssetID pair_id, const L2UpdateEvent& event) noexcept {
         PairState& state = pair_states_[pair_id];
-        DepletionState& depletion = depletion_ledger_[pair_id];
-        reconcile_depletion(state, event, depletion);
 
-        state.bid_prices = event.bid_prices;
-        state.bid_qty = event.bid_qty;
-        state.ask_prices = event.ask_prices;
-        state.ask_qty = event.ask_qty;
-
-        double bid_depth = 0.0;
-        double ask_depth = 0.0;
-        double bid_notional = 0.0;
-        double ask_notional = 0.0;
-        for (std::size_t level = 0U; level < L2Depth5Event::Depth; ++level) {
-            if (state.bid_prices[level] > 0.0 && state.bid_qty[level] > 0.0) {
-                bid_depth += state.bid_qty[level];
-                bid_notional += state.bid_prices[level] * state.bid_qty[level];
-            }
-            if (state.ask_prices[level] > 0.0 && state.ask_qty[level] > 0.0) {
-                ask_depth += state.ask_qty[level];
-                ask_notional += state.ask_prices[level] * state.ask_qty[level];
-            }
+        if (
+            event.is_snapshot &&
+            (snapshot_clear_valid_[pair_id] == 0U || snapshot_clear_times_[pair_id] != current_time_ns_)
+        ) {
+            state.book.clear();
+            snapshot_clear_times_[pair_id] = current_time_ns_;
+            snapshot_clear_valid_[pair_id] = 1U;
         }
+        state.book.update_level(event.is_bid, event.price, event.qty);
+        update_pair_edges(pair_id);
 
+        const double bid_depth = state.book.bid_total_qty();
+        const double ask_depth = state.book.ask_total_qty();
+        const double bid_notional = state.book.bid_total_notional();
+        const double ask_notional = state.book.ask_total_notional();
         const double depth_sum = bid_depth + ask_depth;
-        const double best_bid = state.bid_prices[0U];
-        const double best_ask = state.ask_prices[0U];
+        const double best_bid = state.book.best_bid();
+        const double best_ask = state.book.best_ask();
+
         if (depth_sum > kEpsilon && best_bid > 0.0 && best_ask > 0.0) {
             state.obi = (bid_depth - ask_depth) / depth_sum;
             const double bid_vwap = bid_depth > kEpsilon ? bid_notional / bid_depth : best_bid;
@@ -458,118 +480,83 @@ private:
             state.micro_price = 0.0;
             state.spread_bps = 0.0;
         }
-
-        depletion.last_update_ns = current_time_ns_;
     }
 
-    void reconcile_depletion(
-        const PairState& previous_state,
-        const L2Depth5Event& event,
-        DepletionState& depletion
-    ) noexcept {
-        std::array<double, L2Depth5Event::Depth> next_bid_depletion {};
-        std::array<double, L2Depth5Event::Depth> next_ask_depletion {};
-
-        for (std::size_t new_level = 0U; new_level < L2Depth5Event::Depth; ++new_level) {
-            const double bid_price = event.bid_prices[new_level];
-            if (bid_price > 0.0) {
-                for (std::size_t old_level = 0U; old_level < L2Depth5Event::Depth; ++old_level) {
-                    if (previous_state.bid_prices[old_level] == bid_price) {
-                        const double retained = depletion.bid_depleted_qty[old_level];
-                        next_bid_depletion[new_level] = retained < event.bid_qty[new_level] ? retained : event.bid_qty[new_level];
-                        break;
-                    }
-                }
-            }
-
-            const double ask_price = event.ask_prices[new_level];
-            if (ask_price > 0.0) {
-                for (std::size_t old_level = 0U; old_level < L2Depth5Event::Depth; ++old_level) {
-                    if (previous_state.ask_prices[old_level] == ask_price) {
-                        const double retained = depletion.ask_depleted_qty[old_level];
-                        next_ask_depletion[new_level] = retained < event.ask_qty[new_level] ? retained : event.ask_qty[new_level];
-                        break;
-                    }
-                }
-            }
-        }
-
-        depletion.bid_depleted_qty = next_bid_depletion;
-        depletion.ask_depleted_qty = next_ask_depletion;
-    }
-
-    void rebuild_edges() {
-        edges_.clear();
-        for (auto& adjacent_edges : adjacency_edges_) {
-            adjacent_edges.clear();
-        }
+    void build_static_edges() {
+        lookup_.clear_edges();
         for (AssetID pair_id = 0U; pair_id < pair_states_.size(); ++pair_id) {
             const PairState& pair = pair_states_[pair_id];
-            const double bid_capacity = side_input_capacity(pair_id, true);
-            const double ask_capacity = side_input_capacity(pair_id, false);
-            if (pair.bid_prices[0U] > 0.0 && bid_capacity > 0.0) {
-                const double rate = pair.bid_prices[0U];
-                const double effective_rate = rate * taker_fee_multiplier();
-                add_edge(Edge {
-                    .from = pair.base_id,
-                    .to = pair.quote_id,
-                    .pair_id = pair_id,
-                    .use_bid = true,
-                    .rate = rate,
-                    .available_from_qty = bid_capacity,
-                    .effective_rate = effective_rate,
-                });
-            }
-            if (pair.ask_prices[0U] > 0.0 && ask_capacity > 0.0) {
-                const double rate = 1.0 / pair.ask_prices[0U];
-                const double effective_rate = rate * taker_fee_multiplier();
-                add_edge(Edge {
-                    .from = pair.quote_id,
-                    .to = pair.base_id,
-                    .pair_id = pair_id,
-                    .use_bid = false,
-                    .rate = rate,
-                    .available_from_qty = ask_capacity,
-                    .effective_rate = effective_rate,
-                });
-            }
+            add_static_edge(Edge {
+                .from = pair.base_id,
+                .to = pair.quote_id,
+                .pair_id = pair_id,
+                .use_bid = true,
+            });
+            add_static_edge(Edge {
+                .from = pair.quote_id,
+                .to = pair.base_id,
+                .pair_id = pair_id,
+                .use_bid = false,
+            });
         }
     }
 
-    void add_edge(const Edge& edge) {
+    void add_static_edge(const Edge& edge) {
         const std::size_t edge_index = edges_.size();
         edges_.push_back(edge);
         if (edge.from < adjacency_edges_.size()) {
             adjacency_edges_[edge.from].push_back(edge_index);
         }
+        lookup_.set_edge(edge.from, edge.to, edge_index);
     }
 
-    [[nodiscard]] bool find_negative_cycle() {
-        rebuild_edges();
+    void refresh_all_edges() noexcept {
+        for (AssetID pair_id = 0U; pair_id < pair_states_.size(); ++pair_id) {
+            update_pair_edges(pair_id);
+        }
+    }
+
+    void update_pair_edges(AssetID pair_id) noexcept {
+        if (pair_id >= pair_states_.size()) {
+            return;
+        }
+
+        const PairState& pair = pair_states_[pair_id];
+        if (Edge* bid_edge = mutable_edge_for(pair.base_id, pair.quote_id)) {
+            const double best_bid = pair.book.best_bid();
+            const double bid_capacity = side_input_capacity(pair_id, true);
+            bid_edge->rate = best_bid > 0.0 && bid_capacity > 0.0 ? best_bid : 0.0;
+            bid_edge->available_from_qty = bid_capacity;
+            bid_edge->effective_rate = bid_edge->rate * taker_fee_multiplier();
+        }
+
+        if (Edge* ask_edge = mutable_edge_for(pair.quote_id, pair.base_id)) {
+            const double best_ask = pair.book.best_ask();
+            const double ask_capacity = side_input_capacity(pair_id, false);
+            ask_edge->rate = best_ask > 0.0 && ask_capacity > 0.0 ? 1.0 / best_ask : 0.0;
+            ask_edge->available_from_qty = ask_capacity;
+            ask_edge->effective_rate = ask_edge->rate * taker_fee_multiplier();
+        }
+    }
+
+    [[nodiscard]] bool find_negative_cycle() noexcept {
         const std::size_t asset_count = asset_names_.size();
         if (asset_count == 0U || edges_.empty()) {
             return false;
         }
 
         std::fill(rates_.begin(), rates_.end(), 1.0);
-        std::fill(relax_counts_.begin(), relax_counts_.end(), 0U);
-        std::fill(in_queue_.begin(), in_queue_.end(), 0U);
+        std::fill(predecessors_.begin(), predecessors_.end(), std::numeric_limits<AssetID>::max());
+        std::fill(predecessor_edges_.begin(), predecessor_edges_.end(), invalid_edge_index());
 
-        std::size_t head = 0U;
-        std::size_t tail = 0U;
-        std::size_t queued = 0U;
-        for (AssetID vertex = 0U; vertex < asset_count; ++vertex) {
-            enqueue_spfa_vertex(vertex, head, tail, queued);
-        }
-
-        while (queued > 0U) {
-            const AssetID vertex = spfa_queue_[head];
-            head = (head + 1U) % spfa_queue_.size();
-            --queued;
-            in_queue_[vertex] = 0U;
-
-            for (const std::size_t edge_index : adjacency_edges_[vertex]) {
+        AssetID relaxed_vertex = std::numeric_limits<AssetID>::max();
+        for (std::size_t pass = 0U; pass < asset_count; ++pass) {
+            relaxed_vertex = std::numeric_limits<AssetID>::max();
+            for (std::size_t edge_index = 0U; edge_index < edges_.size(); ++edge_index) {
                 const Edge& edge = edges_[edge_index];
+                if (edge.effective_rate <= 0.0 || edge.from >= rates_.size() || edge.to >= rates_.size()) {
+                    continue;
+                }
                 const double candidate = rates_[edge.from] * edge.effective_rate;
                 if (candidate <= rates_[edge.to] * (1.0 + kEpsilon)) {
                     continue;
@@ -578,40 +565,40 @@ private:
                 rates_[edge.to] = candidate;
                 predecessors_[edge.to] = edge.from;
                 predecessor_edges_[edge.to] = edge_index;
-                ++relax_counts_[edge.to];
-                if (relax_counts_[edge.to] >= asset_count) {
-                    return reconstruct_negative_cycle(edge.to, asset_count);
-                }
-                enqueue_spfa_vertex(edge.to, head, tail, queued);
+                relaxed_vertex = edge.to;
+            }
+            if (relaxed_vertex == std::numeric_limits<AssetID>::max()) {
+                return false;
             }
         }
 
-        return false;
+        return reconstruct_negative_cycle(relaxed_vertex, asset_count);
     }
 
-    void enqueue_spfa_vertex(AssetID vertex, std::size_t& head, std::size_t& tail, std::size_t& queued) noexcept {
-        (void)head;
-        if (vertex >= in_queue_.size() || in_queue_[vertex] != 0U || queued >= spfa_queue_.size()) {
-            return;
-        }
-        spfa_queue_[tail] = vertex;
-        tail = (tail + 1U) % spfa_queue_.size();
-        ++queued;
-        in_queue_[vertex] = 1U;
-    }
-
-    [[nodiscard]] bool reconstruct_negative_cycle(AssetID updated_vertex, std::size_t asset_count) {
-        for (std::size_t index = 0U; index < asset_count; ++index) {
-            updated_vertex = predecessors_[updated_vertex];
-        }
-
+    [[nodiscard]] bool reconstruct_negative_cycle(AssetID cycle_node, std::size_t asset_count) noexcept {
         cycle_.clear();
-        AssetID current = updated_vertex;
+        if (cycle_node >= predecessors_.size()) {
+            return false;
+        }
+
+        AssetID current = cycle_node;
+        for (std::size_t step = 0U; step < asset_count; ++step) {
+            current = predecessors_[current];
+            if (current >= predecessors_.size()) {
+                return false;
+            }
+        }
+
+        const AssetID cycle_start = current;
         do {
             cycle_.push_back(current);
             current = predecessors_[current];
-        } while (current != updated_vertex && cycle_.size() <= asset_count + 1U);
-        cycle_.push_back(updated_vertex);
+            if (current >= predecessors_.size() || cycle_.size() > asset_count) {
+                cycle_.clear();
+                return false;
+            }
+        } while (current != cycle_start);
+        cycle_.push_back(cycle_start);
         std::reverse(cycle_.begin(), cycle_.end());
         return cycle_.size() > 2U && rotate_cycle_to_quote();
     }
@@ -631,7 +618,7 @@ private:
         return true;
     }
 
-    void enqueue_cycle(Result& result) {
+    void enqueue_cycle(Result& result) noexcept {
         ++result.attempted_cycles;
         if (cycle_.size() < 3U || cycle_.size() > kMaxGraphLegs + 1U || cycle_.front() != quote_asset_id_) {
             return;
@@ -658,10 +645,20 @@ private:
             pending.assets[index] = cycle_[index];
         }
 
+        double current_qty = start_quantity;
+        for (std::size_t index = 0U; index < pending.leg_count; ++index) {
+            const Edge* edge = edge_for(cycle_[index], cycle_[index + 1U]);
+            if (edge != nullptr) {
+                pending.expected_rates[index] = edge->rate;
+                const double gross_output = quote_visible_depth(*edge, current_qty);
+                pending.leg_outputs[index] = gross_output;
+                current_qty = gross_output * taker_fee_multiplier();
+            }
+        }
+
         if (!pending_cycles_.push(pending)) {
             wallet_.release_reserved(quote_asset_id_, start_quantity);
             ++result.panic_closes;
-            return;
         }
     }
 
@@ -690,14 +687,14 @@ private:
         return max_start > 0.0 ? max_start : 0.0;
     }
 
-    void process_next_pending_cycle(Result& result) {
+    void process_next_pending_cycle(Result& result) noexcept {
         PendingCycle pending = pending_cycles_.top();
         pending_cycles_.pop();
         current_time_ns_ = std::max(current_time_ns_, pending.release_time_ns);
         execute_pending_leg(pending, result);
     }
 
-    void execute_pending_leg(PendingCycle& pending, Result& result) {
+    void execute_pending_leg(PendingCycle& pending, Result& result) noexcept {
         if (pending.current_leg >= pending.leg_count) {
             if (pending.current_asset == quote_asset_id_) {
                 ++result.completed_cycles;
@@ -707,16 +704,19 @@ private:
             return;
         }
 
-        rebuild_edges();
         const AssetID next_asset = pending.assets[pending.current_leg + 1U];
-        const Edge* edge = edge_for(pending.current_asset, next_asset);
+        Edge current_edge {};
+        const bool has_edge = current_edge_for(pending.current_asset, next_asset, current_edge);
         const bool spending_reserved_quote = pending.current_leg == 0U && pending.current_asset == quote_asset_id_;
         const double spendable_balance = spending_reserved_quote
             ? wallet_.reserved(pending.current_asset)
             : wallet_.balance(pending.current_asset);
+            
         if (
-            edge == nullptr ||
-            edge->available_from_qty + kEpsilon < pending.current_quantity ||
+            !has_edge ||
+            current_edge.rate < pending.expected_rates[pending.current_leg] - kEpsilon ||
+            current_edge.available_from_qty + kEpsilon < pending.current_quantity ||
+            quote_visible_depth(current_edge, pending.current_quantity) + kEpsilon < pending.leg_outputs[pending.current_leg] ||
             spendable_balance + kEpsilon < pending.current_quantity
         ) {
             if (spending_reserved_quote) {
@@ -736,7 +736,8 @@ private:
             wallet_.sub_balance(pending.current_asset, pending.current_quantity);
         }
 
-        const double gross_output = sweep_visible_depth(*edge, pending.current_quantity);
+        const double gross_output = sweep_visible_depth(current_edge, pending.current_quantity);
+        update_pair_edges(current_edge.pair_id);
         pending.current_quantity = wallet_.apply_fill(next_asset, gross_output, config_.taker_fee_bps);
         pending.current_asset = next_asset;
         ++pending.current_leg;
@@ -756,7 +757,7 @@ private:
         }
     }
 
-    void panic_close_to_quote(AssetID asset_id, double quantity, double initial_quote, Result& result) {
+    void panic_close_to_quote(AssetID asset_id, double quantity, double initial_quote, Result& result) noexcept {
         ++result.panic_closes;
         (void)initial_quote;
         if (asset_id == quote_asset_id_ || quantity <= 0.0) {
@@ -781,6 +782,7 @@ private:
             return quantity;
         }
 
+        refresh_all_edges();
         if (const Edge* direct = edge_for(asset_id, quote_asset_id_)) {
             return execute_pessimistic_liquidation(*direct, quantity);
         }
@@ -790,8 +792,16 @@ private:
                 continue;
             }
             if (const Edge* second = edge_for(first.to, quote_asset_id_)) {
+                (void)second;
                 const double intermediate = execute_pessimistic_liquidation(first, quantity);
-                return execute_pessimistic_liquidation(*second, intermediate * taker_fee_multiplier());
+                update_pair_edges(first.pair_id);
+                const Edge* refreshed_second = edge_for(first.to, quote_asset_id_);
+                if (refreshed_second != nullptr) {
+                    const double output = execute_pessimistic_liquidation(*refreshed_second, intermediate * taker_fee_multiplier());
+                    update_pair_edges(refreshed_second->pair_id);
+                    return output;
+                }
+                return 0.0;
             }
         }
 
@@ -807,53 +817,86 @@ private:
             ? excess_quantity * edge.rate * (1.0 - kPanicSlippagePenalty)
             : 0.0;
         deplete_unobserved_tail(edge, excess_quantity);
+        update_pair_edges(edge.pair_id);
         return visible_output + penalized_output;
     }
 
     [[nodiscard]] double side_input_capacity(AssetID pair_id, bool use_bid) const noexcept {
         const PairState& pair = pair_states_[pair_id];
-        const DepletionState& depletion = depletion_ledger_[pair_id];
-        double capacity = 0.0;
-        for (std::size_t level = 0U; level < L2Depth5Event::Depth; ++level) {
-            if (use_bid) {
-                const double effective_qty = pair.bid_qty[level] - depletion.bid_depleted_qty[level];
-                if (pair.bid_prices[level] > 0.0 && effective_qty > 0.0) {
-                    capacity += effective_qty;
-                }
-            } else {
-                const double effective_qty = pair.ask_qty[level] - depletion.ask_depleted_qty[level];
-                if (pair.ask_prices[level] > 0.0 && effective_qty > 0.0) {
-                    capacity += pair.ask_prices[level] * effective_qty;
-                }
-            }
+        if (use_bid) {
+            return pair.book.bid_effective_qty();
         }
-        return capacity;
+        return pair.book.ask_effective_notional();
     }
 
-    [[nodiscard]] double sweep_visible_depth(const Edge& edge, double input_quantity) noexcept {
-        DepletionState& depletion = depletion_ledger_[edge.pair_id];
+    [[nodiscard]] double quote_visible_depth(const Edge& edge, double input_quantity) const noexcept {
         const PairState& pair = pair_states_[edge.pair_id];
         double remaining = input_quantity;
         double output = 0.0;
-        for (std::size_t level = 0U; level < L2Depth5Event::Depth && remaining > kEpsilon; ++level) {
-            if (edge.use_bid) {
-                const double effective_qty = pair.bid_qty[level] - depletion.bid_depleted_qty[level];
-                if (pair.bid_prices[level] <= 0.0 || effective_qty <= 0.0) {
+
+        if (edge.use_bid) {
+            for (const auto& level : pair.book.bids()) {
+                if (remaining <= kEpsilon) {
+                    break;
+                }
+                const double effective_qty = level.effective_qty();
+                if (effective_qty <= 0.0) {
                     continue;
                 }
                 const double consumed = remaining < effective_qty ? remaining : effective_qty;
-                depletion.bid_depleted_qty[level] += consumed;
                 remaining -= consumed;
-                output += consumed * pair.bid_prices[level];
-            } else {
-                const double effective_qty = pair.ask_qty[level] - depletion.ask_depleted_qty[level];
-                if (pair.ask_prices[level] <= 0.0 || effective_qty <= 0.0) {
+                output += consumed * level.price;
+            }
+        } else {
+            for (const auto& level : pair.book.asks()) {
+                if (remaining <= kEpsilon) {
+                    break;
+                }
+                const double effective_qty = level.effective_qty();
+                if (effective_qty <= 0.0) {
                     continue;
                 }
-                const double level_notional = pair.ask_prices[level] * effective_qty;
+                const double level_notional = level.price * effective_qty;
                 const double consumed_quote = remaining < level_notional ? remaining : level_notional;
-                const double consumed_base = consumed_quote / pair.ask_prices[level];
-                depletion.ask_depleted_qty[level] += consumed_base;
+                remaining -= consumed_quote;
+                output += consumed_quote / level.price;
+            }
+        }
+        return output;
+    }
+
+    [[nodiscard]] double sweep_visible_depth(const Edge& edge, double input_quantity) noexcept {
+        PairState& pair = pair_states_[edge.pair_id];
+        double remaining = input_quantity;
+        double output = 0.0;
+        
+        if (edge.use_bid) {
+            for (const auto& level : pair.book.bids()) {
+                if (remaining <= kEpsilon) {
+                    break;
+                }
+                const double effective_qty = level.effective_qty();
+                if (effective_qty <= 0.0) {
+                    continue;
+                }
+                const double consumed = remaining < effective_qty ? remaining : effective_qty;
+                pair.book.deplete_level(true, level.price, consumed);
+                remaining -= consumed;
+                output += consumed * level.price;
+            }
+        } else {
+            for (const auto& level : pair.book.asks()) {
+                if (remaining <= kEpsilon) {
+                    break;
+                }
+                const double effective_qty = level.effective_qty();
+                if (effective_qty <= 0.0) {
+                    continue;
+                }
+                const double level_notional = level.price * effective_qty;
+                const double consumed_quote = remaining < level_notional ? remaining : level_notional;
+                const double consumed_base = consumed_quote / level.price;
+                pair.book.deplete_level(false, level.price, consumed_base);
                 remaining -= consumed_quote;
                 output += consumed_base;
             }
@@ -865,18 +908,16 @@ private:
         if (input_quantity <= 0.0) {
             return;
         }
-        DepletionState& depletion = depletion_ledger_[edge.pair_id];
+        PairState& pair = pair_states_[edge.pair_id];
         if (edge.use_bid) {
-            depletion.bid_depleted_qty[L2Depth5Event::Depth - 1U] += input_quantity;
-            return;
-        }
-
-        const PairState& pair = pair_states_[edge.pair_id];
-        const double tail_price = pair.ask_prices[L2Depth5Event::Depth - 1U] > 0.0
-            ? pair.ask_prices[L2Depth5Event::Depth - 1U]
-            : pair.ask_prices[0U];
-        if (tail_price > 0.0) {
-            depletion.ask_depleted_qty[L2Depth5Event::Depth - 1U] += input_quantity / tail_price;
+            if (!pair.book.bids().empty()) {
+                pair.book.deplete_level(true, pair.book.bids().back().price, input_quantity);
+            }
+        } else {
+            if (!pair.book.asks().empty()) {
+                const double tail_price = pair.book.asks().back().price;
+                pair.book.deplete_level(false, tail_price, input_quantity / tail_price);
+            }
         }
     }
 
@@ -885,12 +926,44 @@ private:
     }
 
     [[nodiscard]] const Edge* edge_for(AssetID from, AssetID to) const noexcept {
-        for (const Edge& edge : edges_) {
-            if (edge.from == from && edge.to == to) {
-                return &edge;
-            }
+        const std::size_t edge_index = lookup_.find_edge(from, to, adjacency_edges_, edges_);
+        return edge_index < edges_.size() ? &edges_[edge_index] : nullptr;
+    }
+
+    [[nodiscard]] Edge* mutable_edge_for(AssetID from, AssetID to) noexcept {
+        const std::size_t edge_index = lookup_.find_edge(from, to, adjacency_edges_, edges_);
+        return edge_index < edges_.size() ? &edges_[edge_index] : nullptr;
+    }
+
+    void set_route(AssetID from, AssetID to, AssetID pair_id, bool use_bid) {
+        lookup_.set_route(from, to, pair_id, use_bid);
+    }
+
+    [[nodiscard]] bool current_edge_for(AssetID from, AssetID to, Edge& edge) const noexcept {
+        AssetID pair_id {};
+        bool use_bid {};
+        if (!lookup_.find_route(from, to, pair_id, use_bid) || pair_id >= pair_states_.size()) {
+            return false;
         }
-        return nullptr;
+
+        const PairState& pair = pair_states_[pair_id];
+        const double price = use_bid ? pair.book.best_bid() : pair.book.best_ask();
+        const double capacity = side_input_capacity(pair_id, use_bid);
+        if (price <= 0.0 || capacity <= 0.0) {
+            return false;
+        }
+
+        const double rate = use_bid ? price : 1.0 / price;
+        edge = Edge {
+            .from = from,
+            .to = to,
+            .pair_id = pair_id,
+            .use_bid = use_bid,
+            .rate = rate,
+            .available_from_qty = capacity,
+            .effective_rate = rate * taker_fee_multiplier(),
+        };
+        return true;
     }
 
     [[nodiscard]] bool cycle_passes_execution_filters() const noexcept {
@@ -984,23 +1057,29 @@ private:
     bool running_ {};
     std::vector<PairConfig> pairs_ {};
     std::vector<PairState> pair_states_ {};
-    std::vector<L2Depth5CsvParser> parsers_ {};
+    std::vector<L2UpdateCsvParser> parsers_ {};
     std::vector<std::string> asset_names_ {};
     std::unordered_map<std::string, AssetID> asset_index_ {};
     std::vector<Edge> edges_ {};
     std::vector<std::vector<std::size_t>> adjacency_edges_ {};
+    LookupPolicy lookup_ {};
     std::vector<double> rates_ {};
     std::vector<AssetID> predecessors_ {};
     std::vector<std::size_t> predecessor_edges_ {};
-    std::vector<std::uint16_t> relax_counts_ {};
-    std::vector<std::uint8_t> in_queue_ {};
-    std::vector<AssetID> spfa_queue_ {};
     std::vector<AssetID> cycle_ {};
-    std::vector<DepletionState> depletion_ledger_ {};
+    std::vector<std::uint64_t> snapshot_clear_times_ {};
+    std::vector<std::uint8_t> snapshot_clear_valid_ {};
     std::vector<ParserEvent> parser_events_ {};
     CycleSnapshotRing cycle_snapshots_ {};
     DynamicWallet wallet_ {};
     PendingMinHeap<PendingCycle, kPendingCycleCapacity> pending_cycles_ {};
+
+    [[nodiscard]] static constexpr std::size_t invalid_edge_index() noexcept {
+        return std::numeric_limits<std::size_t>::max();
+    }
 };
+
+using GraphArbitrageEngine = GraphArbitrageEngineT<DenseLookupPolicy>;
+using GraphArbitrageEngineLarge = GraphArbitrageEngineT<SparseLookupPolicy>;
 
 }  // namespace lob

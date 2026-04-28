@@ -1,5 +1,5 @@
 {
-  "tests": 13,
+  "tests": 30,
   "name": "AllTests",
   "testsuites": [
     {
@@ -9,42 +9,89 @@
         {
           "name": "InitializesSuccessfully",
           "file": "\/Users\/danilamalafeev\/Documents\/New project\/tests\/test_lob.cpp",
-          "line": 66
+          "line": 75
         },
         {
           "name": "ProcessOrderRestsBuyOrderWhenBookDoesNotCross",
           "file": "\/Users\/danilamalafeev\/Documents\/New project\/tests\/test_lob.cpp",
-          "line": 73
+          "line": 229
         },
         {
           "name": "ProcessOrderRestsSellOrderWhenBookDoesNotCross",
           "file": "\/Users\/danilamalafeev\/Documents\/New project\/tests\/test_lob.cpp",
-          "line": 97
+          "line": 253
         },
         {
           "name": "ProcessOrderMatchesCrossSpreadUsingPriceTimePriority",
           "file": "\/Users\/danilamalafeev\/Documents\/New project\/tests\/test_lob.cpp",
-          "line": 121
+          "line": 277
         },
         {
           "name": "ProcessOrderRestsResidualQuantityAfterPartialIncomingFill",
           "file": "\/Users\/danilamalafeev\/Documents\/New project\/tests\/test_lob.cpp",
-          "line": 189
+          "line": 345
         },
         {
           "name": "CancelOrderRemovesEmptyBidPriceLevelAndIndexEntry",
           "file": "\/Users\/danilamalafeev\/Documents\/New project\/tests\/test_lob.cpp",
-          "line": 222
+          "line": 378
         },
         {
           "name": "CancelOrderReturnsFalseForUnknownId",
           "file": "\/Users\/danilamalafeev\/Documents\/New project\/tests\/test_lob.cpp",
-          "line": 252
+          "line": 408
         },
         {
           "name": "ExposesBestPricesAndL2Snapshot",
           "file": "\/Users\/danilamalafeev\/Documents\/New project\/tests\/test_lob.cpp",
-          "line": 257
+          "line": 413
+        }
+      ]
+    },
+    {
+      "name": "L2OrderBookTest",
+      "tests": 6,
+      "testsuite": [
+        {
+          "name": "MaintainsBidAndAskSortOrder",
+          "file": "\/Users\/danilamalafeev\/Documents\/New project\/tests\/test_lob.cpp",
+          "line": 82
+        },
+        {
+          "name": "UpdatesAndRemovesLevels",
+          "file": "\/Users\/danilamalafeev\/Documents\/New project\/tests\/test_lob.cpp",
+          "line": 103
+        },
+        {
+          "name": "AllowsSimulatedDepletionBeyondVisibleQuantityUntilFeedRefresh",
+          "file": "\/Users\/danilamalafeev\/Documents\/New project\/tests\/test_lob.cpp",
+          "line": 121
+        },
+        {
+          "name": "EnforcesCapacityByDroppingDeepLevels",
+          "file": "\/Users\/danilamalafeev\/Documents\/New project\/tests\/test_lob.cpp",
+          "line": 136
+        },
+        {
+          "name": "AppliesSnapshotByClearingBothSides",
+          "file": "\/Users\/danilamalafeev\/Documents\/New project\/tests\/test_lob.cpp",
+          "line": 172
+        },
+        {
+          "name": "RemovesLevelsNotPresentInSnapshotWithoutClearingRetainedDepletion",
+          "file": "\/Users\/danilamalafeev\/Documents\/New project\/tests\/test_lob.cpp",
+          "line": 190
+        }
+      ]
+    },
+    {
+      "name": "DynamicWalletTest",
+      "tests": 1,
+      "testsuite": [
+        {
+          "name": "TracksReservedAndFreeBalances",
+          "file": "\/Users\/danilamalafeev\/Documents\/New project\/tests\/test_lob.cpp",
+          "line": 208
         }
       ]
     },
@@ -55,7 +102,7 @@
         {
           "name": "ComputesPnlAndDrawdownFromEquityCurve",
           "file": "\/Users\/danilamalafeev\/Documents\/New project\/tests\/test_lob.cpp",
-          "line": 299
+          "line": 455
         }
       ]
     },
@@ -66,7 +113,56 @@
         {
           "name": "StreamsMmapEventsWithOneEventLookahead",
           "file": "\/Users\/danilamalafeev\/Documents\/New project\/tests\/test_lob.cpp",
-          "line": 310
+          "line": 466
+        }
+      ]
+    },
+    {
+      "name": "L2Depth5CsvParserTest",
+      "tests": 1,
+      "testsuite": [
+        {
+          "name": "StreamsDepth5RowsAndBackfillsBboRows",
+          "file": "\/Users\/danilamalafeev\/Documents\/New project\/tests\/test_lob.cpp",
+          "line": 497
+        }
+      ]
+    },
+    {
+      "name": "L2UpdateCsvParserTest",
+      "tests": 1,
+      "testsuite": [
+        {
+          "name": "StreamsRawL2UpdatesAndBooleanFormats",
+          "file": "\/Users\/danilamalafeev\/Documents\/New project\/tests\/test_lob.cpp",
+          "line": 540
+        }
+      ]
+    },
+    {
+      "name": "VenueReplayTest",
+      "tests": 2,
+      "testsuite": [
+        {
+          "name": "RejectsSequenceGapsAndReorderingPerProduct",
+          "file": "\/Users\/danilamalafeev\/Documents\/New project\/tests\/test_lob.cpp",
+          "line": 572
+        },
+        {
+          "name": "AcceptsNewSnapshotEpochForSameProduct",
+          "file": "\/Users\/danilamalafeev\/Documents\/New project\/tests\/test_lob.cpp",
+          "line": 593
+        }
+      ]
+    },
+    {
+      "name": "VenueManifestTest",
+      "tests": 1,
+      "testsuite": [
+        {
+          "name": "DescribesVenueProductScalesAndCosts",
+          "file": "\/Users\/danilamalafeev\/Documents\/New project\/tests\/test_lob.cpp",
+          "line": 609
         }
       ]
     },
@@ -77,12 +173,12 @@
         {
           "name": "MergesSmallStreamSetWithFastPath",
           "file": "\/Users\/danilamalafeev\/Documents\/New project\/tests\/test_lob.cpp",
-          "line": 341
+          "line": 640
         },
         {
           "name": "MergesLargeStreamSetWithHeapPath",
           "file": "\/Users\/danilamalafeev\/Documents\/New project\/tests\/test_lob.cpp",
-          "line": 359
+          "line": 658
         }
       ]
     },
@@ -93,7 +189,38 @@
         {
           "name": "RoutesMergedEventsToAssetBooksAndStrategy",
           "file": "\/Users\/danilamalafeev\/Documents\/New project\/tests\/test_lob.cpp",
-          "line": 378
+          "line": 677
+        }
+      ]
+    },
+    {
+      "name": "GraphArbitrageEngineTest",
+      "tests": 5,
+      "testsuite": [
+        {
+          "name": "DetectsAndExecutesNegativeCycleThroughL2OrderBook",
+          "file": "\/Users\/danilamalafeev\/Documents\/New project\/tests\/test_lob.cpp",
+          "line": 692
+        },
+        {
+          "name": "MaxBookLevelsPerSideCapsDepthUsedByGraph",
+          "file": "\/Users\/danilamalafeev\/Documents\/New project\/tests\/test_lob.cpp",
+          "line": 754
+        },
+        {
+          "name": "SparseLookupEngineMatchesDenseEngineOnL2Scenario",
+          "file": "\/Users\/danilamalafeev\/Documents\/New project\/tests\/test_lob.cpp",
+          "line": 823
+        },
+        {
+          "name": "DetectsCompletedCycleRegardlessOfL2UpdateOrder",
+          "file": "\/Users\/danilamalafeev\/Documents\/New project\/tests\/test_lob.cpp",
+          "line": 895
+        },
+        {
+          "name": "RevalidatesVisibleDepthAtPendingLegExecution",
+          "file": "\/Users\/danilamalafeev\/Documents\/New project\/tests\/test_lob.cpp",
+          "line": 966
         }
       ]
     }
