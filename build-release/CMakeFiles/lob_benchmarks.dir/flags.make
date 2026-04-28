@@ -6,7 +6,7 @@ CXX_DEFINES = -DBENCHMARK_STATIC_DEFINE
 
 CXX_INCLUDES = -I"/Users/danilamalafeev/Documents/New project/include" -I"/Users/danilamalafeev/Documents/New project/build-release/_deps/googlebenchmark-src/include"
 
-CXX_FLAGSarm64 = -O3 -DNDEBUG -std=c++20 -arch arm64
+CXX_FLAGSarm64 = -O3 -march=native -DNDEBUG -O3 -DNDEBUG -std=c++20 -arch arm64
 
-CXX_FLAGS = -O3 -DNDEBUG -std=c++20 -arch arm64
+CXX_FLAGS = -O3 -march=native -DNDEBUG -O3 -DNDEBUG -std=c++20 -arch arm64
 

@@ -106,7 +106,8 @@ def write_summary_csv(path: Path, rows: list[dict[str, object]]) -> None:
 
 
 def run_once(yabe, args: argparse.Namespace, pair_specs: list[PairSpec]) -> dict[str, object]:
-    engine = yabe.GraphEngine(
+    engine_class = yabe.GraphEngineLarge if args.large_graph else yabe.GraphEngine
+    engine = engine_class(
         initial_usdt=args.initial_usdt,
         latency_ns=args.latency_ns,
         intra_leg_latency_ns=args.intra_leg_latency_ns,
@@ -118,6 +119,7 @@ def run_once(yabe, args: argparse.Namespace, pair_specs: list[PairSpec]) -> dict
         min_cycle_edge_bps=args.min_cycle_edge_bps,
         cycle_snapshot_reserve=args.cycle_snapshot_reserve,
         quote_asset=args.quote_asset,
+        max_book_levels_per_side=args.max_book_levels_per_side,
     )
 
     for spec in pair_specs:
@@ -131,7 +133,7 @@ def run_once(yabe, args: argparse.Namespace, pair_specs: list[PairSpec]) -> dict
     print(
         "RESULT_GRAPH_CSV,"
         "events,cycles,attempts,completed,panic,latency_ns,taker_fee_bps,max_notional,"
-        "max_adverse_obi,max_spread_bps,min_depth_usdt,min_cycle_edge_bps,cycle_snapshots,"
+        "max_adverse_obi,max_spread_bps,min_depth_usdt,min_cycle_edge_bps,max_book_levels_per_side,engine,cycle_snapshots,"
         "final_usdt,final_nav,inventory_risk"
     )
     print(
@@ -148,6 +150,8 @@ def run_once(yabe, args: argparse.Namespace, pair_specs: list[PairSpec]) -> dict
         f"{args.max_spread_bps},"
         f"{args.min_depth_usdt},"
         f"{args.min_cycle_edge_bps},"
+        f"{args.max_book_levels_per_side},"
+        f"{engine_class.__name__},"
         f"{result.cycle_snapshot_count},"
         f"{result.final_usdt:.10f},"
         f"{result.final_nav:.10f},"
@@ -172,6 +176,8 @@ def run_once(yabe, args: argparse.Namespace, pair_specs: list[PairSpec]) -> dict
         "max_spread_bps": args.max_spread_bps,
         "min_depth_usdt": args.min_depth_usdt,
         "min_cycle_edge_bps": args.min_cycle_edge_bps,
+        "max_book_levels_per_side": args.max_book_levels_per_side,
+        "engine": engine_class.__name__,
         "cycle_snapshots": result.cycle_snapshot_count,
         "final_usdt": result.final_usdt,
         "final_nav": result.final_nav,
@@ -197,6 +203,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--min-depth-usdt", type=float, default=0.0)
     parser.add_argument("--min-cycle-edge-bps", type=float, default=0.0)
     parser.add_argument("--cycle-snapshot-reserve", type=int, default=100_000)
+    parser.add_argument("--max-book-levels-per-side", type=int, default=100)
+    parser.add_argument("--large-graph", action="store_true", help="Use sparse GraphEngineLarge lookup policy")
     parser.add_argument("--quote-asset", default="USDT")
     parser.add_argument("--summary-csv", default="", help="Optional path for one-row result CSV")
     return parser

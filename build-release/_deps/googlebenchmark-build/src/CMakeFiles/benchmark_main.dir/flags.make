@@ -6,7 +6,7 @@ CXX_DEFINES = -DBENCHMARK_STATIC_DEFINE -DHAVE_POSIX_REGEX -DHAVE_STD_REGEX -DHA
 
 CXX_INCLUDES = -I"/Users/danilamalafeev/Documents/New project/build-release/_deps/googlebenchmark-src/include" -I"/Users/danilamalafeev/Documents/New project/build-release/_deps/googlebenchmark-src/src"
 
-CXX_FLAGSarm64 =   -Wall  -Wextra  -Wshadow  -Wfloat-equal  -Wold-style-cast  -Wconversion  -Werror  -Wsuggest-override  -pedantic  -pedantic-errors  -Wshorten-64-to-32  -fstrict-aliasing  -Wno-deprecated-declarations  -Wno-deprecated  -Wstrict-aliasing  -Wthread-safety -O3 -DNDEBUG -std=c++17 -arch arm64 -fvisibility=hidden -fvisibility-inlines-hidden
+CXX_FLAGSarm64 = -O3 -march=native -DNDEBUG  -Wall  -Wextra  -Wshadow  -Wfloat-equal  -Wold-style-cast  -Wconversion  -Werror  -Wsuggest-override  -pedantic  -pedantic-errors  -Wshorten-64-to-32  -fstrict-aliasing  -Wno-deprecated-declarations  -Wno-deprecated  -Wstrict-aliasing  -Wthread-safety -O3 -DNDEBUG -std=c++17 -arch arm64 -fvisibility=hidden -fvisibility-inlines-hidden
 
-CXX_FLAGS =   -Wall  -Wextra  -Wshadow  -Wfloat-equal  -Wold-style-cast  -Wconversion  -Werror  -Wsuggest-override  -pedantic  -pedantic-errors  -Wshorten-64-to-32  -fstrict-aliasing  -Wno-deprecated-declarations  -Wno-deprecated  -Wstrict-aliasing  -Wthread-safety -O3 -DNDEBUG -std=c++17 -arch arm64 -fvisibility=hidden -fvisibility-inlines-hidden
+CXX_FLAGS = -O3 -march=native -DNDEBUG  -Wall  -Wextra  -Wshadow  -Wfloat-equal  -Wold-style-cast  -Wconversion  -Werror  -Wsuggest-override  -pedantic  -pedantic-errors  -Wshorten-64-to-32  -fstrict-aliasing  -Wno-deprecated-declarations  -Wno-deprecated  -Wstrict-aliasing  -Wthread-safety -O3 -DNDEBUG -std=c++17 -arch arm64 -fvisibility=hidden -fvisibility-inlines-hidden
 

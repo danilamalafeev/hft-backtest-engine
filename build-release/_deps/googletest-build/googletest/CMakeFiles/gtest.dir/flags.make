@@ -6,7 +6,7 @@ CXX_DEFINES =
 
 CXX_INCLUDES = -I"/Users/danilamalafeev/Documents/New project/build-release/_deps/googletest-src/googletest/include" -I"/Users/danilamalafeev/Documents/New project/build-release/_deps/googletest-src/googletest"
 
-CXX_FLAGSarm64 = -O3 -DNDEBUG -std=c++20 -arch arm64  -DGTEST_HAS_PTHREAD=1  
+CXX_FLAGSarm64 = -O3 -march=native -DNDEBUG -O3 -DNDEBUG -std=c++20 -arch arm64  -DGTEST_HAS_PTHREAD=1  
 
-CXX_FLAGS = -O3 -DNDEBUG -std=c++20 -arch arm64  -DGTEST_HAS_PTHREAD=1  
+CXX_FLAGS = -O3 -march=native -DNDEBUG -O3 -DNDEBUG -std=c++20 -arch arm64  -DGTEST_HAS_PTHREAD=1  
 

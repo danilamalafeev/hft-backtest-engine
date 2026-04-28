@@ -447,6 +447,54 @@ src/l2_csv_parser.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/lob_core.dir/build.make CMakeFiles/lob_core.dir/src/l2_csv_parser.cpp.s
 .PHONY : src/l2_csv_parser.cpp.s
 
+src/l2_depth5_csv_parser.o: src/l2_depth5_csv_parser.cpp.o
+.PHONY : src/l2_depth5_csv_parser.o
+
+# target to build an object file
+src/l2_depth5_csv_parser.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/lob_core.dir/build.make CMakeFiles/lob_core.dir/src/l2_depth5_csv_parser.cpp.o
+.PHONY : src/l2_depth5_csv_parser.cpp.o
+
+src/l2_depth5_csv_parser.i: src/l2_depth5_csv_parser.cpp.i
+.PHONY : src/l2_depth5_csv_parser.i
+
+# target to preprocess a source file
+src/l2_depth5_csv_parser.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/lob_core.dir/build.make CMakeFiles/lob_core.dir/src/l2_depth5_csv_parser.cpp.i
+.PHONY : src/l2_depth5_csv_parser.cpp.i
+
+src/l2_depth5_csv_parser.s: src/l2_depth5_csv_parser.cpp.s
+.PHONY : src/l2_depth5_csv_parser.s
+
+# target to generate assembly for a file
+src/l2_depth5_csv_parser.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/lob_core.dir/build.make CMakeFiles/lob_core.dir/src/l2_depth5_csv_parser.cpp.s
+.PHONY : src/l2_depth5_csv_parser.cpp.s
+
+src/l2_update_csv_parser.o: src/l2_update_csv_parser.cpp.o
+.PHONY : src/l2_update_csv_parser.o
+
+# target to build an object file
+src/l2_update_csv_parser.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/lob_core.dir/build.make CMakeFiles/lob_core.dir/src/l2_update_csv_parser.cpp.o
+.PHONY : src/l2_update_csv_parser.cpp.o
+
+src/l2_update_csv_parser.i: src/l2_update_csv_parser.cpp.i
+.PHONY : src/l2_update_csv_parser.i
+
+# target to preprocess a source file
+src/l2_update_csv_parser.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/lob_core.dir/build.make CMakeFiles/lob_core.dir/src/l2_update_csv_parser.cpp.i
+.PHONY : src/l2_update_csv_parser.cpp.i
+
+src/l2_update_csv_parser.s: src/l2_update_csv_parser.cpp.s
+.PHONY : src/l2_update_csv_parser.s
+
+# target to generate assembly for a file
+src/l2_update_csv_parser.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/lob_core.dir/build.make CMakeFiles/lob_core.dir/src/l2_update_csv_parser.cpp.s
+.PHONY : src/l2_update_csv_parser.cpp.s
+
 src/main_backtest.o: src/main_backtest.cpp.o
 .PHONY : src/main_backtest.o
 
@@ -559,6 +607,12 @@ help:
 	@echo "... src/l2_csv_parser.o"
 	@echo "... src/l2_csv_parser.i"
 	@echo "... src/l2_csv_parser.s"
+	@echo "... src/l2_depth5_csv_parser.o"
+	@echo "... src/l2_depth5_csv_parser.i"
+	@echo "... src/l2_depth5_csv_parser.s"
+	@echo "... src/l2_update_csv_parser.o"
+	@echo "... src/l2_update_csv_parser.i"
+	@echo "... src/l2_update_csv_parser.s"
 	@echo "... src/main_backtest.o"
 	@echo "... src/main_backtest.i"
 	@echo "... src/main_backtest.s"

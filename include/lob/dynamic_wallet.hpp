@@ -24,16 +24,16 @@ public:
         balances_[quote_currency_id_] = quote_balance;
     }
 
-    [[nodiscard]] double balance(AssetID asset) const {
-        return balances_.at(asset);
+    [[nodiscard]] double balance(AssetID asset) const noexcept {
+        return balances_[asset];
     }
 
-    [[nodiscard]] double reserved(AssetID asset) const {
-        return reserved_.at(asset);
+    [[nodiscard]] double reserved(AssetID asset) const noexcept {
+        return reserved_[asset];
     }
 
-    [[nodiscard]] double free_balance(AssetID asset) const {
-        return balances_.at(asset) - reserved_.at(asset);
+    [[nodiscard]] double free_balance(AssetID asset) const noexcept {
+        return balances_[asset] - reserved_[asset];
     }
 
     [[nodiscard]] const std::vector<double>& balances() const noexcept {

@@ -93,14 +93,18 @@ private:
 
 class PyGraphResult {
 public:
-    explicit PyGraphResult(lob::GraphArbitrageEngine::Result result)
-        : result_(std::move(result)) {}
+    template <typename Result>
+    explicit PyGraphResult(Result result) {
+        copy_from(std::move(result));
+    }
 
     std::uint64_t events_processed() const noexcept { return result_.events_processed; }
     std::uint64_t cycles_detected() const noexcept { return result_.cycles_detected; }
     std::uint64_t attempted_cycles() const noexcept { return result_.attempted_cycles; }
     std::uint64_t completed_cycles() const noexcept { return result_.completed_cycles; }
     std::uint64_t panic_closes() const noexcept { return result_.panic_closes; }
+    std::uint64_t market_batches_processed() const noexcept { return result_.market_batches_processed; }
+    std::uint64_t cycle_searches() const noexcept { return result_.cycle_searches; }
     double final_usdt() const noexcept { return result_.final_usdt; }
     double final_nav() const noexcept { return result_.final_nav; }
     double inventory_risk() const noexcept { return result_.inventory_risk; }
@@ -162,9 +166,40 @@ public:
     }
 
 private:
+    template <typename Result>
+    void copy_from(Result result) {
+        result_.events_processed = result.events_processed;
+        result_.cycles_detected = result.cycles_detected;
+        result_.attempted_cycles = result.attempted_cycles;
+        result_.completed_cycles = result.completed_cycles;
+        result_.panic_closes = result.panic_closes;
+        result_.market_batches_processed = result.market_batches_processed;
+        result_.cycle_searches = result.cycle_searches;
+        result_.initial_usdt = result.initial_usdt;
+        result_.final_usdt = result.final_usdt;
+        result_.final_nav = result.final_nav;
+        result_.inventory_risk = result.inventory_risk;
+        result_.balances = std::move(result.balances);
+        result_.last_cycle = std::move(result.last_cycle);
+        result_.cycle_snapshots.clear();
+        result_.cycle_snapshots.reserve(result.cycle_snapshots.size());
+        for (const auto& snapshot : result.cycle_snapshots) {
+            lob::GraphArbitrageEngine::CycleSnapshot copied {};
+            copied.timestamp_ns = snapshot.timestamp_ns;
+            copied.leg_count = snapshot.leg_count;
+            copied.cycle_path = snapshot.cycle_path;
+            copied.leg_obis = snapshot.leg_obis;
+            copied.leg_spreads_bps = snapshot.leg_spreads_bps;
+            copied.executed = snapshot.executed;
+            result_.cycle_snapshots.push_back(copied);
+        }
+        result_.cycle_snapshots_overwritten = result.cycle_snapshots_overwritten;
+    }
+
     lob::GraphArbitrageEngine::Result result_ {};
 };
 
+template <typename Engine>
 class PyGraphEngine {
 public:
     PyGraphEngine(
@@ -178,9 +213,10 @@ public:
         double min_depth_usdt,
         double min_cycle_edge_bps,
         std::size_t cycle_snapshot_reserve,
-        std::string quote_asset
+        std::string quote_asset,
+        std::size_t max_book_levels_per_side
     )
-        : engine_(lob::GraphArbitrageEngine::Config {
+        : engine_(typename Engine::Config {
               .initial_usdt = initial_usdt,
               .quote_asset = std::move(quote_asset),
               .latency_ns = latency_ns,
@@ -192,6 +228,7 @@ public:
               .min_depth_usdt = min_depth_usdt,
               .min_cycle_edge_bps = min_cycle_edge_bps,
               .cycle_snapshot_reserve = cycle_snapshot_reserve,
+              .max_book_levels_per_side = max_book_levels_per_side,
           }) {}
 
     lob::AssetID add_pair(const std::string& base_asset, const std::string& quote_asset, const std::string& csv_file_path) {
@@ -207,8 +244,11 @@ public:
     }
 
 private:
-    lob::GraphArbitrageEngine engine_;
+    Engine engine_;
 };
+
+using PyGraphEngineDense = PyGraphEngine<lob::GraphArbitrageEngine>;
+using PyGraphEngineLarge = PyGraphEngine<lob::GraphArbitrageEngineLarge>;
 
 class PyTriangularEngine {
 public:
@@ -343,6 +383,8 @@ PYBIND11_MODULE(yabe, module) {
         .def_property_readonly("attempted_cycles", &PyGraphResult::attempted_cycles)
         .def_property_readonly("completed_cycles", &PyGraphResult::completed_cycles)
         .def_property_readonly("panic_closes", &PyGraphResult::panic_closes)
+        .def_property_readonly("market_batches_processed", &PyGraphResult::market_batches_processed)
+        .def_property_readonly("cycle_searches", &PyGraphResult::cycle_searches)
         .def_property_readonly("final_usdt", &PyGraphResult::final_usdt)
         .def_property_readonly("final_nav", &PyGraphResult::final_nav)
         .def_property_readonly("inventory_risk", &PyGraphResult::inventory_risk)
@@ -352,9 +394,9 @@ PYBIND11_MODULE(yabe, module) {
         .def_property_readonly("cycle_snapshots_overwritten", &PyGraphResult::cycle_snapshots_overwritten)
         .def("get_cycle_snapshots_dataframe", &PyGraphResult::get_cycle_snapshots_dataframe);
 
-    py::class_<PyGraphEngine>(module, "GraphEngine")
+    py::class_<PyGraphEngineDense>(module, "GraphEngine")
         .def(
-            py::init<double, std::uint64_t, std::uint64_t, double, double, double, double, double, double, std::size_t, std::string>(),
+            py::init<double, std::uint64_t, std::uint64_t, double, double, double, double, double, double, std::size_t, std::string, std::size_t>(),
             py::arg("initial_usdt") = 100'000'000.0,
             py::arg("latency_ns") = 0,
             py::arg("intra_leg_latency_ns") = 75,
@@ -365,11 +407,32 @@ PYBIND11_MODULE(yabe, module) {
             py::arg("min_depth_usdt") = 0.0,
             py::arg("min_cycle_edge_bps") = 0.0,
             py::arg("cycle_snapshot_reserve") = 100'000U,
-            py::arg("quote_asset") = "USDT"
+            py::arg("quote_asset") = "USDT",
+            py::arg("max_book_levels_per_side") = 100U
         )
-        .def("add_pair", &PyGraphEngine::add_pair, py::arg("base_asset"), py::arg("quote_asset"), py::arg("csv_file_path"))
-        .def_property_readonly("assets", &PyGraphEngine::assets)
-        .def("run", &PyGraphEngine::run, py::call_guard<py::gil_scoped_release>());
+        .def("add_pair", &PyGraphEngineDense::add_pair, py::arg("base_asset"), py::arg("quote_asset"), py::arg("csv_file_path"))
+        .def_property_readonly("assets", &PyGraphEngineDense::assets)
+        .def("run", &PyGraphEngineDense::run, py::call_guard<py::gil_scoped_release>());
+
+    py::class_<PyGraphEngineLarge>(module, "GraphEngineLarge")
+        .def(
+            py::init<double, std::uint64_t, std::uint64_t, double, double, double, double, double, double, std::size_t, std::string, std::size_t>(),
+            py::arg("initial_usdt") = 100'000'000.0,
+            py::arg("latency_ns") = 0,
+            py::arg("intra_leg_latency_ns") = 75,
+            py::arg("taker_fee_bps") = 0.0,
+            py::arg("max_cycle_notional_usdt") = 1'000.0,
+            py::arg("max_adverse_obi") = 1.0,
+            py::arg("max_spread_bps") = 1'000.0,
+            py::arg("min_depth_usdt") = 0.0,
+            py::arg("min_cycle_edge_bps") = 0.0,
+            py::arg("cycle_snapshot_reserve") = 100'000U,
+            py::arg("quote_asset") = "USDT",
+            py::arg("max_book_levels_per_side") = 100U
+        )
+        .def("add_pair", &PyGraphEngineLarge::add_pair, py::arg("base_asset"), py::arg("quote_asset"), py::arg("csv_file_path"))
+        .def_property_readonly("assets", &PyGraphEngineLarge::assets)
+        .def("run", &PyGraphEngineLarge::run, py::call_guard<py::gil_scoped_release>());
 
     py::class_<PyTriangularEngine>(module, "TriangularEngine")
         .def(py::init<std::uint64_t, double, double, bool>(),
