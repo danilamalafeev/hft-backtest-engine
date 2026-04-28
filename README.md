@@ -1,6 +1,6 @@
 # YABE: Yet Another Backtest Engine
 
-YABE is a high-performance C++20 limit order book (LOB), multi-asset mmap replay engine, and quantitative backtesting framework built for market microstructure research and atomic execution strategies like Triangular Arbitrage. The engine is strictly allocation-free on the hot path and now ships with a `pybind11` Python module for research workflows.
+YABE is a high-performance C++20 limit order book (LOB), multi-asset mmap replay engine, and quantitative backtesting framework built for market microstructure research, N-leg graph arbitrage, and atomic execution strategies. The current research path supports raw L2 update replay with capped visible depth, dense or sparse graph lookup policies, and a `pybind11` Python module for Python/NumPy/Pandas workflows.
 
 ## Overview
 
@@ -17,13 +17,18 @@ Key technical highlights:
 
 Core modules:
 - `lob::MultiAssetBacktestEngine`: Orchestrates the order books, event merger, order execution, latency simulation, and portfolio tracking.
-- `lob::GraphArbitrageEngine`: Dynamic N-asset graph arbitrage engine over L1/bookTicker style data, using Bellman-Ford negative-cycle detection.
+- `lob::GraphArbitrageEngine`: Default dense-lookup N-asset graph arbitrage engine for small graphs.
+- `lob::GraphArbitrageEngineLarge`: Sparse-lookup graph arbitrage engine for larger sparse asset/product graphs.
+- `lob::GraphArbitrageEngineT<LookupPolicy>`: Compile-time lookup-policy template behind both graph engines.
+- `lob::L2OrderBook`: Capped top-N visible L2 execution view fed by raw `L2Update` rows.
+- `lob::ReplaySequenceValidator` / venue replay primitives: Foundation types for future venue-normalized immutable replay logs.
+- `lob::VenueManifest`: Foundation manifest types for assets, products, tick/lot scales, cost models, and settlement domains.
 - `lob::OrderGateway` / `lob::oms`: Gateway interface defining atomic execution `OrderGroup` logic, FOK sweeps, and execution reports.
 - `lob::TriangularArbitrageStrategy`: Strategy implementation modeling USDT -> BTC -> ETH -> USDT cycles with bottleneck volume calculation and post-fee threshold checks.
 - `lob::AsyncLogger`: High-throughput background CSV writer for full event-level trace data.
 - `lob::Wallet`: Fee-aware asset inventory state and risk management.
 - `lob::DynamicWallet`: Runtime-sized wallet for arbitrary graph assets, exposed through `GraphResult.balances`.
-- `yabe` Python module: Thin `pybind11` binding exposing `run_triangular`, `TriangularEngine`, `GraphEngine`, and result objects for research workflows.
+- `yabe` Python module: Thin `pybind11` binding exposing `run_triangular`, `TriangularEngine`, `GraphEngine`, `GraphEngineLarge`, and result objects for research workflows.
 
 ## Strategy: Triangular Arbitrage
 
@@ -37,7 +42,7 @@ Features:
 
 ## Dynamic Graph Arbitrage
 
-`GraphEngine` is the research path for N-leg arbitrage. Instead of hardcoding BTC/ETH/USDT, pairs are added dynamically from Python:
+`GraphEngine` is the default research path for N-leg arbitrage on small dense graphs. `GraphEngineLarge` exposes the same Python API but uses the sparse lookup policy, which is better for larger sparse product graphs and is also competitive on the current 3-asset triangle.
 
 ```python
 import yabe
@@ -50,11 +55,12 @@ engine = yabe.GraphEngine(
     max_cycle_notional_usdt=1_000,
     max_adverse_obi=0.2,
     min_cycle_edge_bps=0.5,
+    max_book_levels_per_side=20,
 )
 
-engine.add_pair("BTC", "USDT", "data/BTCUSDT-bookTicker-2024-03-05.csv")
-engine.add_pair("ETH", "USDT", "data/ETHUSDT-bookTicker-2024-03-05.csv")
-engine.add_pair("ETH", "BTC", "data/ETHBTC-bookTicker-2024-03-05.csv")
+engine.add_pair("BTC", "USDT", "data/tardis/BTCUSDT-l2update-2024-03-01.csv")
+engine.add_pair("ETH", "USDT", "data/tardis/ETHUSDT-l2update-2024-03-01.csv")
+engine.add_pair("ETH", "BTC", "data/tardis/ETHBTC-l2update-2024-03-01.csv")
 
 result = engine.run()
 
@@ -64,10 +70,16 @@ print(result.final_nav, result.inventory_risk, result.balances)
 
 The graph engine currently supports:
 - Bellman-Ford negative-cycle detection.
+- Compile-time lookup policies:
+  - `GraphEngine`: dense O(1) lookup tables, best for small graphs.
+  - `GraphEngineLarge`: sparse adjacency/route lookup, best for large sparse graphs.
+- Stable graph topology: directed edges are built once, then rates/capacities update in place.
+- Raw L2Update replay into capped top-N visible books via `max_book_levels_per_side`.
 - Dynamic cycle rotation so tradable cycles start/end in `USDT`.
 - Fee-aware bottleneck sizing.
 - Latency-delayed pending cycle execution.
-- Per-snapshot liquidity depletion ledger, so virtual fills cannot repeatedly consume the same visible BBO size.
+- Current-depth execution revalidation before each pending leg.
+- Non-mutating quote simulation at signal time; live book depletion happens only at execution time.
 - Dynamic wallet balances for arbitrary assets.
 - Pessimistic panic close with a penalty for size beyond visible top-of-book liquidity.
 - Smart order router filters: adverse OBI, spread, visible depth, and minimum theoretical cycle edge after taker fees.
@@ -76,13 +88,24 @@ For CLI-style research runs:
 
 ```bash
 PYTHONPATH=build-release python3 scripts/run_graph_arbitrage.py \
-  --auto-triangle \
-  --date 2024-03-05 \
+  --pair BTC/USDT:data/tardis/BTCUSDT-l2update-2024-03-01.csv \
+  --pair ETH/USDT:data/tardis/ETHUSDT-l2update-2024-03-01.csv \
+  --pair ETH/BTC:data/tardis/ETHBTC-l2update-2024-03-01.csv \
   --latency-ns 500000 \
   --taker-fee-bps 7.5 \
-  --max-adverse-obi 0.2 \
-  --min-cycle-edge-bps 0.5 \
+  --max-book-levels-per-side 20 \
   --summary-csv results/graph_run.csv
+```
+
+Use `--large-graph` to select the sparse lookup policy:
+
+```bash
+PYTHONPATH=build-release python3 scripts/run_graph_arbitrage.py \
+  --large-graph \
+  --pair BTC/USDT:data/tardis/BTCUSDT-l2update-2024-03-01.csv \
+  --pair ETH/USDT:data/tardis/ETHUSDT-l2update-2024-03-01.csv \
+  --pair ETH/BTC:data/tardis/ETHBTC-l2update-2024-03-01.csv \
+  --max-book-levels-per-side 20
 ```
 
 `GraphResult` exposes:
@@ -91,25 +114,31 @@ PYTHONPATH=build-release python3 scripts/run_graph_arbitrage.py \
 - `attempted_cycles`
 - `completed_cycles`
 - `panic_closes`
+- `market_batches_processed`
+- `cycle_searches`
 - `final_usdt`
 - `final_nav`
 - `inventory_risk`
 - `balances`
 - `last_cycle`
+- `cycle_snapshot_count`
 
 Key execution filters:
 - `--max-adverse-obi`: rejects buys when bid-side imbalance is too strong and rejects sells when ask-side pressure is too strong. `1.0` disables the filter.
 - `--max-spread-bps`: rejects cycles touching pairs with wide spreads. `1000` is effectively permissive for most liquid markets.
 - `--min-depth-usdt`: rejects cycles when visible top-of-book depth is too shallow in USDT terms.
 - `--min-cycle-edge-bps`: requires a minimum theoretical cycle edge after taker fees before the cycle is sent to the latency heap.
+- `--max-book-levels-per-side`: caps retained visible depth per side. Use `20` for fast iteration and `100` for sanity checks against deeper visible liquidity.
+- `--large-graph`: uses `GraphEngineLarge` and the sparse lookup policy.
 
 ## Data Sources
 
-YABE supports three data paths:
+YABE supports four data paths:
 
 1. Trade replay for the older `TriangularEngine`.
-2. L1/bookTicker-style replay for `GraphEngine`.
-3. Depth-5 replay for `GraphEngine`, preserving the top five bid and ask levels in a fixed-size C++ struct.
+2. L1/bookTicker-style replay for older graph experiments.
+3. Depth-5 replay for compatibility with prior Tardis experiments.
+4. Raw `L2Update` replay for the current graph research path.
 
 The backward-compatible L1 CSV format is:
 
@@ -117,13 +146,19 @@ The backward-compatible L1 CSV format is:
 timestamp,bid_price,bid_qty,ask_price,ask_qty
 ```
 
-The preferred Depth-5 CSV format is:
+The legacy Depth-5 CSV format is:
 
 ```csv
 timestamp,b1_p,b1_q,b2_p,b2_q,b3_p,b3_q,b4_p,b4_q,b5_p,b5_q,a1_p,a1_q,a2_p,a2_q,a3_p,a3_q,a4_p,a4_q,a5_p,a5_q
 ```
 
-`GraphEngine` reads both formats. L1 rows are internally treated as a Depth-5 book with only level 1 populated.
+The current preferred graph CSV format is `L2Update`:
+
+```csv
+timestamp,is_snapshot,is_bid,price,qty
+```
+
+Rows represent absolute price-level quantities. `qty <= 0` removes a level. The graph engine batches rows with the same timestamp, applies them to capped `L2OrderBook` views, then runs cycle detection once for that timestamp batch.
 
 ### Spot Data Caveat
 
@@ -173,71 +208,68 @@ python3 scripts/download_tardis.py \
   --symbols BTCUSDT ETHUSDT ETHBTC
 ```
 
-Convert diffs to YABE's Depth-5 schema:
+Convert diffs to YABE's current `L2Update` schema:
 
 ```bash
-python3 scripts/tardis_to_depth5.py \
+python3 scripts/tardis_to_l2update.py \
   data/tardis/tardis-binance-BTCUSDT-incremental_book_L2-2024-03-01.csv.gz \
-  -o data/tardis/tardis-binance-BTCUSDT-depth5-2024-03-01.csv
+  -o data/tardis/BTCUSDT-l2update-2024-03-01.csv
 
-python3 scripts/tardis_to_depth5.py \
+python3 scripts/tardis_to_l2update.py \
   data/tardis/tardis-binance-ETHUSDT-incremental_book_L2-2024-03-01.csv.gz \
-  -o data/tardis/tardis-binance-ETHUSDT-depth5-2024-03-01.csv
+  -o data/tardis/ETHUSDT-l2update-2024-03-01.csv
 
-python3 scripts/tardis_to_depth5.py \
+python3 scripts/tardis_to_l2update.py \
   data/tardis/tardis-binance-ETHBTC-incremental_book_L2-2024-03-01.csv.gz \
-  -o data/tardis/tardis-binance-ETHBTC-depth5-2024-03-01.csv
+  -o data/tardis/ETHBTC-l2update-2024-03-01.csv
 ```
 
 Then run the graph engine:
 
 ```bash
 PYTHONPATH=build-release python3 scripts/run_graph_arbitrage.py \
-  --pair BTC/USDT:data/tardis/tardis-binance-BTCUSDT-depth5-2024-03-01.csv \
-  --pair ETH/USDT:data/tardis/tardis-binance-ETHUSDT-depth5-2024-03-01.csv \
-  --pair ETH/BTC:data/tardis/tardis-binance-ETHBTC-depth5-2024-03-01.csv \
+  --pair BTC/USDT:data/tardis/BTCUSDT-l2update-2024-03-01.csv \
+  --pair ETH/USDT:data/tardis/ETHUSDT-l2update-2024-03-01.csv \
+  --pair ETH/BTC:data/tardis/ETHBTC-l2update-2024-03-01.csv \
   --latency-ns 500000 \
   --taker-fee-bps 7.5 \
-  --max-adverse-obi 0.2 \
-  --min-cycle-edge-bps 0.5
+  --max-book-levels-per-side 20
 ```
 
-The converter reconstructs the local book from `incremental_book_L2` rows, skips pre-snapshot diffs, batches rows by `local_timestamp`, and emits a Depth-5 row only when the top five levels change. The older `tardis_to_bookticker.py` BBO converter is still available for lightweight L1 experiments.
+The converter preserves raw L2 price-level rows in YABE's replay schema. The C++ engine owns book mutation and caps the visible execution view with `max_book_levels_per_side`. The older `tardis_to_depth5.py` and `tardis_to_bookticker.py` converters are still available for compatibility and lightweight experiments.
 
-Recent Tardis spot run:
+Recent Tardis spot raw L2Update run:
 
 ```text
-BTCUSDT: 23,766,560 diff rows -> 706,777 Depth-5 rows
-ETHUSDT: 20,236,010 diff rows -> 680,105 Depth-5 rows
-ETHBTC: 1,625,906 diff rows -> 392,928 Depth-5 rows
-GraphEngine replay: 1,779,810 events at ~2.28M EPS (median)
+BTCUSDT: 23,766,561 L2Update rows
+ETHUSDT: 20,236,011 L2Update rows
+ETHBTC: 1,625,907 L2Update rows
+Total processed events: 45,628,476
 ```
 
-Current reference result on `2024-03-01` Tardis spot Depth-5:
+Current reference result on `2024-03-01` Tardis spot raw L2Update, cap 20:
 
 ```text
 latency_ns=500000
-taker_fee_bps=1.0
-max_adverse_obi=0.2
-min_cycle_edge_bps=0.5
-PnL=+$37.20
-cycles=27
-completed=27
-panic=0
+taker_fee_bps=7.5
+max_book_levels_per_side=20
+PnL=+$40.3445859551
+cycles=29
+completed=24
+panic=5
 ```
 
 Run that configuration:
 
 ```bash
 PYTHONPATH=build-release python3 scripts/run_graph_arbitrage.py \
-  --pair BTC/USDT:data/tardis/tardis-binance-BTCUSDT-depth5-2024-03-01.csv \
-  --pair ETH/USDT:data/tardis/tardis-binance-ETHUSDT-depth5-2024-03-01.csv \
-  --pair ETH/BTC:data/tardis/tardis-binance-ETHBTC-depth5-2024-03-01.csv \
+  --pair BTC/USDT:data/tardis/BTCUSDT-l2update-2024-03-01.csv \
+  --pair ETH/USDT:data/tardis/ETHUSDT-l2update-2024-03-01.csv \
+  --pair ETH/BTC:data/tardis/ETHBTC-l2update-2024-03-01.csv \
   --latency-ns 500000 \
-  --taker-fee-bps 1.0 \
-  --max-adverse-obi 0.2 \
-  --min-cycle-edge-bps 0.5 \
-  --summary-csv results/tardis_depth5_best_graph_2024-03-01.csv
+  --taker-fee-bps 7.5 \
+  --max-book-levels-per-side 20 \
+  --summary-csv results/tardis_l2update_graph_2024-03-01.csv
 ```
 
 ## Performance
@@ -246,10 +278,20 @@ Tested locally in a `Release` build on Apple Silicon.
 
 Recent Graph Engine runs (Release build on Apple Silicon):
 
-**Depth-5 Tardis (1.77M events)**:
+**Raw L2Update Tardis, cap 20 (45.63M events)**:
+- `GraphEngine`: `6.51s`, `7.01M EPS`, PnL `+$40.3445859551 USDT`
+- `GraphEngineLarge`: `6.06s`, `7.53M EPS`, PnL `+$40.3445859551 USDT`
+- Cycles Detected: `29`
+- Completed Cycles: `24`
+- Panic Closes: `5`
+
+**Raw L2Update Tardis, cap 100 (45.63M events)**:
+- Wall Time: `7.95s`
+- Throughput: `5.74M EPS`
+- PnL: `+$40.3467098325 USDT`
+
+**Legacy Depth-5 Tardis (1.77M events)**:
 - Median Throughput: `2.28M EPS`
-- Cycles Detected: `27`
-- Panic Closes: `0`
 - PnL: `+$37.20 USDT`
 
 **L1 bookTicker (9.00M events)**:
@@ -257,6 +299,16 @@ Recent Graph Engine runs (Release build on Apple Silicon):
 - Cycles Detected: `81,728`
 - Panic Closes: `64,962`
 - PnL: `+$9,205.05 USDT`
+
+## Foundation Roadmap
+
+The current foundation is ready for separate Hyperliquid, Polymarket, and ML/RL research branches. The next architecture work should stay additive:
+
+- **Venue-normalized replay**: immutable replay logs with venue/product ids, exchange/receive timestamps, sequence ids, snapshot epochs, checksum/gap policy, absolute-vs-delta semantics, and integer ticks/lots.
+- **Venue manifests**: assets, products, tick/lot scales, fee/cost models, collateral, settlement domains, and synthetic transform declarations.
+- **Canonical full-depth books**: maintain full venue state separately from capped top-N execution views.
+- **Typed executable edges**: order-book taker edges, static conversion edges, and Polymarket-style multi-input/multi-output transforms.
+- **Feature export**: deterministic snapshots for spread, OBI, depth bands, microprice, cycle edge, latency outcome, and execution label generation.
 
 ## Quick Start
 
