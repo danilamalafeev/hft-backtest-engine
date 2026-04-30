@@ -1080,8 +1080,12 @@ CMakeFiles/lob_tests.dir/tests/test_lob.cpp.o: \
   /Users/danilamalafeev/Documents/New\ project/include/lob/event_l2_update.hpp \
   /Users/danilamalafeev/Documents/New\ project/include/lob/l2_update_csv_parser.hpp \
   /Users/danilamalafeev/Documents/New\ project/include/lob/lookup_policy.hpp \
+  /Users/danilamalafeev/Documents/New\ project/include/lob/l2_backtest_engine.hpp \
+  /Users/danilamalafeev/Documents/New\ project/include/lob/l2_strategy.hpp \
+  /Users/danilamalafeev/Documents/New\ project/include/lob/l2_market_maker_strategy.hpp \
   /Users/danilamalafeev/Documents/New\ project/include/lob/l2_depth5_csv_parser.hpp \
   /Users/danilamalafeev/Documents/New\ project/include/lob/event_depth5.hpp \
+  /Users/danilamalafeev/Documents/New\ project/include/lob/market_maker_strategy.hpp \
   /Users/danilamalafeev/Documents/New\ project/include/lob/multi_asset_backtest_engine.hpp \
   /Users/danilamalafeev/Documents/New\ project/include/lob/async_logger.hpp \
   /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1/chrono \
@@ -1118,5 +1122,8 @@ CMakeFiles/lob_tests.dir/tests/test_lob.cpp.o: \
   /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1/__thread/thread.h \
   /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1/__thread/this_thread.h \
   /Users/danilamalafeev/Documents/New\ project/include/lob/wallet.hpp \
+  /Users/danilamalafeev/Documents/New\ project/include/lob/PolymarketFeedAdapter.hpp \
+  /Users/danilamalafeev/Documents/New\ project/include/lob/PolymarketOrderBook.hpp \
+  /Users/danilamalafeev/Documents/New\ project/include/lob/PolymarketTypes.hpp \
   /Users/danilamalafeev/Documents/New\ project/include/lob/venue_manifest.hpp \
   /Users/danilamalafeev/Documents/New\ project/include/lob/venue_replay.hpp

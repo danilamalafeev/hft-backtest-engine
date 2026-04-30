@@ -1098,12 +1098,27 @@ CMakeFiles/lob_tests.dir/tests/test_lob.cpp.o
  /Users/danilamalafeev/Documents/New project/build-release/_deps/googletest-src/googletest/include/gtest/internal/gtest-port.h
  /Users/danilamalafeev/Documents/New project/build-release/_deps/googletest-src/googletest/include/gtest/internal/gtest-string.h
  /Users/danilamalafeev/Documents/New project/build-release/_deps/googletest-src/googletest/include/gtest/internal/gtest-type-util.h
+ /Users/danilamalafeev/Documents/New project/include/lob/PolymarketFeedAdapter.hpp
+ /Users/danilamalafeev/Documents/New project/include/lob/PolymarketOrderBook.hpp
+ /Users/danilamalafeev/Documents/New project/include/lob/PolymarketTypes.hpp
  /Users/danilamalafeev/Documents/New project/include/lob/analytics.hpp
  /Users/danilamalafeev/Documents/New project/include/lob/async_logger.hpp
  /Users/danilamalafeev/Documents/New project/include/lob/backtest_engine.hpp
  /Users/danilamalafeev/Documents/New project/include/lob/csv_parser.hpp
+ /Users/danilamalafeev/Documents/New project/include/lob/dynamic_wallet.hpp
  /Users/danilamalafeev/Documents/New project/include/lob/event.hpp
+ /Users/danilamalafeev/Documents/New project/include/lob/event_depth5.hpp
+ /Users/danilamalafeev/Documents/New project/include/lob/event_l2_update.hpp
  /Users/danilamalafeev/Documents/New project/include/lob/event_merger.hpp
+ /Users/danilamalafeev/Documents/New project/include/lob/graph_arbitrage_engine.hpp
+ /Users/danilamalafeev/Documents/New project/include/lob/l2_backtest_engine.hpp
+ /Users/danilamalafeev/Documents/New project/include/lob/l2_depth5_csv_parser.hpp
+ /Users/danilamalafeev/Documents/New project/include/lob/l2_market_maker_strategy.hpp
+ /Users/danilamalafeev/Documents/New project/include/lob/l2_order_book.hpp
+ /Users/danilamalafeev/Documents/New project/include/lob/l2_strategy.hpp
+ /Users/danilamalafeev/Documents/New project/include/lob/l2_update_csv_parser.hpp
+ /Users/danilamalafeev/Documents/New project/include/lob/lookup_policy.hpp
+ /Users/danilamalafeev/Documents/New project/include/lob/market_maker_strategy.hpp
  /Users/danilamalafeev/Documents/New project/include/lob/multi_asset_backtest_engine.hpp
  /Users/danilamalafeev/Documents/New project/include/lob/oms.hpp
  /Users/danilamalafeev/Documents/New project/include/lob/order.hpp
@@ -1112,5 +1127,7 @@ CMakeFiles/lob_tests.dir/tests/test_lob.cpp.o
  /Users/danilamalafeev/Documents/New project/include/lob/price_level.hpp
  /Users/danilamalafeev/Documents/New project/include/lob/strategy.hpp
  /Users/danilamalafeev/Documents/New project/include/lob/trade.hpp
+ /Users/danilamalafeev/Documents/New project/include/lob/venue_manifest.hpp
+ /Users/danilamalafeev/Documents/New project/include/lob/venue_replay.hpp
  /Users/danilamalafeev/Documents/New project/include/lob/wallet.hpp
 

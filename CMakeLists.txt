@@ -48,6 +48,7 @@ endif()
 add_library(lob_core STATIC
     src/backtest_engine.cpp
     src/csv_parser.cpp
+    src/l2_backtest_engine.cpp
     src/l2_csv_parser.cpp
     src/l2_depth5_csv_parser.cpp
     src/l2_update_csv_parser.cpp

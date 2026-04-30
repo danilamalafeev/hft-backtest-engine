@@ -6,6 +6,9 @@ __pycache__/
 backtest_trace.html
 *.csv
 *.csv.gz
+*.jsonl
+*.jsonl.zst
+*.parquet
 data/tardis/
 results/*.csv
 build-release/

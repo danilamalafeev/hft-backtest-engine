@@ -1,48 +1,133 @@
-# YABE: Yet Another Backtest Engine
+# YABE
 
-YABE is a high-performance C++20 limit order book (LOB), multi-asset mmap replay engine, and quantitative backtesting framework built for market microstructure research, N-leg graph arbitrage, and atomic execution strategies. The current research path supports raw L2 update replay with capped visible depth, dense or sparse graph lookup policies, and a `pybind11` Python module for Python/NumPy/Pandas workflows.
+YABE, "Yet Another Backtest Engine", is a C++20 backtesting engine for limit-order-book replay and graph-based arbitrage research.
 
-## Overview
+The current production research path is `GraphEngine`: it replays normalized L2 update CSV files through mmap-backed parsers, reconstructs per-pair books, builds an asset graph, and searches for executable arbitrage cycles with latency-aware execution.
 
-The engine merges multiple Binance historical trade streams in real-time, matching orders with price-time priority. It supports complex OMS features like atomic group execution, intra-leg latency simulation, fee-aware sizing, and lock-free asynchronous logging.
+## Current Status
 
-Key technical highlights:
-- **Zero-Copy Ingestion**: POSIX `mmap` combined with custom C++20 `StreamingParser` concepts for maximum speed.
-- **Allocation-Free Event Merger**: Uses a fast-path flat scan for `N <= 4` assets and a `std::priority_queue` backed by a pre-reserved `std::vector` for dynamic scaling (`N > 4`).
-- **Asynchronous Lock-Free Logging**: SPSC (Single-Producer Single-Consumer) ring buffer without syscalls on the hot path. Background thread batches disk writes and supports CPU core pinning.
-- **Multi-Currency Wallet**: Native tracking of USDT, BTC, ETH, spot fee deduction (from the received asset), and Mark-to-Market (MTM) NAV calculation.
-- **Advanced OMS**: Supports Fill-Or-Kill (FOK), `OrderGroup` atomic execution, slippage limits, and `panic_close_group` (reverse market sweeps for failed legs).
+YABE has five engine-facing paths:
 
-## Architecture
+- `GraphEngine`: the active dense-lookup N-asset graph arbitrage engine. This is the default path for small graphs.
+- `GraphEngineLarge`: the same graph engine with sparse lookup policy. Use it for larger sparse product graphs or when testing graph-scale behavior.
+- `L2BacktestEngine`: single-asset replay over external normalized L2 updates, intended for market-making and ML/RL research.
+- `BacktestEngine`: single-asset replay and strategy backtesting over the core LOB/OMS path.
+- `TriangularEngine`: fixed BTC/ETH/USDT triangular-arbitrage backtesting over the multi-asset OMS path.
 
-Core modules:
-- `lob::MultiAssetBacktestEngine`: Orchestrates the order books, event merger, order execution, latency simulation, and portfolio tracking.
-- `lob::GraphArbitrageEngine`: Default dense-lookup N-asset graph arbitrage engine for small graphs.
-- `lob::GraphArbitrageEngineLarge`: Sparse-lookup graph arbitrage engine for larger sparse asset/product graphs.
-- `lob::GraphArbitrageEngineT<LookupPolicy>`: Compile-time lookup-policy template behind both graph engines.
-- `lob::L2OrderBook`: Capped top-N visible L2 execution view fed by raw `L2Update` rows.
-- `lob::ReplaySequenceValidator` / venue replay primitives: Foundation types for future venue-normalized immutable replay logs.
-- `lob::VenueManifest`: Foundation manifest types for assets, products, tick/lot scales, cost models, and settlement domains.
-- `lob::OrderGateway` / `lob::oms`: Gateway interface defining atomic execution `OrderGroup` logic, FOK sweeps, and execution reports.
-- `lob::TriangularArbitrageStrategy`: Strategy implementation modeling USDT -> BTC -> ETH -> USDT cycles with bottleneck volume calculation and post-fee threshold checks.
-- `lob::AsyncLogger`: High-throughput background CSV writer for full event-level trace data.
-- `lob::Wallet`: Fee-aware asset inventory state and risk management.
-- `lob::DynamicWallet`: Runtime-sized wallet for arbitrary graph assets, exposed through `GraphResult.balances`.
-- `yabe` Python module: Thin `pybind11` binding exposing `run_triangular`, `TriangularEngine`, `GraphEngine`, `GraphEngineLarge`, and result objects for research workflows.
+The graph engine currently supports:
 
-## Strategy: Triangular Arbitrage
+- mmap-backed CSV replay.
+- Raw L2 update rows: snapshot/update flag, side, price, quantity.
+- Per-pair local book reconstruction.
+- Dynamic asset registration from Python.
+- Bellman-Ford cycle detection.
+- Stable graph topology with in-place rate and capacity updates.
+- Dense and sparse lookup policies.
+- Fee-aware sizing.
+- Latency-delayed leg execution.
+- Visible-depth depletion so simulated fills cannot repeatedly consume the same displayed liquidity.
+- Python bindings through `pybind11`, with the replay loop running outside the Python GIL.
 
-The `TriangularArbitrageStrategy` monitors 3 pairs (e.g., BTCUSDT, ETHUSDT, ETHBTC) and detects cyclic mispricings.
+Known limitations are listed near the end of this file. Read them before treating results as production-quality venue simulation.
 
-Features:
-- **Bottleneck Sizing**: Dynamically calculates the maximum executable volume across the 3 order books based on available L2 depth.
-- **Fee-Aware Sizing**: Anticipates taker fees deducted by the `Wallet` from the received asset. Sizes subsequent legs exactly to the post-fee received amount to completely eliminate dust accumulation.
-- **Atomic Execution**: Submits all 3 legs via `OrderGroup`. If any leg fails or experiences severe slippage, the OMS triggers a panic reverse-sweep to close the partial exposure.
-- **Intra-Leg Latency**: Leg execution is separated by simulated nanosecond-level latency and exponential/lognormal jitter.
+## Repository Layout
 
-## Dynamic Graph Arbitrage
+```text
+include/lob/                  C++ headers
+src/                          C++ implementation and Python bindings
+tests/                        GoogleTest suite
+benchmarks/                   Microbenchmarks
+scripts/run_graph_arbitrage.py GraphEngine CLI helper
+scripts/tardis_to_l2update.py  Tardis incremental L2 -> YABE update CSV
+scripts/tardis_to_depth5.py    Legacy Tardis incremental L2 -> depth-5 CSV
+include/lob/l2_backtest_engine.hpp Single-asset external L2 replay engine
+include/lob/backtest_engine.hpp Single-asset strategy backtest engine
+include/lob/market_maker_strategy.hpp Basic market-making strategy
+include/lob/inventory_skew_strategy.hpp Inventory-skew market-making strategy
+include/lob/venue_replay.hpp   Venue replay envelope and sequence validation foundations
+include/lob/venue_manifest.hpp Venue/product manifest foundations
+```
 
-`GraphEngine` is the default research path for N-leg arbitrage on small dense graphs. `GraphEngineLarge` exposes the same Python API but uses the sparse lookup policy, which is better for larger sparse product graphs and is also competitive on the current 3-asset triangle.
+## Build
+
+```bash
+cmake -B build-release -DCMAKE_BUILD_TYPE=Release
+cmake --build build-release
+ctest --test-dir build-release --output-on-failure
+```
+
+Build only the Python extension:
+
+```bash
+cmake --build build-release --target yabe
+```
+
+The Python module is emitted into the build directory, usually:
+
+```text
+build-release/yabe.so
+```
+
+## GraphEngine Input Format
+
+`GraphEngine` expects one CSV file per trading pair.
+
+Preferred normalized L2 update format:
+
+```csv
+timestamp,is_snapshot,is_bid,price,qty
+1000000000,1,1,49900.0,10.0
+1000000000,1,0,50000.0,10.0
+1000000100,0,1,49910.0,4.0
+1000000200,0,0,50000.0,0.0
+```
+
+Field meaning:
+
+- `timestamp`: event time. Nanoseconds are used as-is; smaller millisecond-like values are normalized internally.
+- `is_snapshot`: `1` for snapshot rows, `0` for incremental updates.
+- `is_bid`: `1` for bid side, `0` for ask side.
+- `price`: price level.
+- `qty`: absolute quantity at that level. `0` removes the level.
+
+The parser supports this format through `L2UpdateCsvParser`.
+
+## Running GraphEngine
+
+Manual pair configuration:
+
+```bash
+PYTHONPATH=build-release python3 scripts/run_graph_arbitrage.py \
+  --pair BTC/USDT:data/BTCUSDT-l2update.csv \
+  --pair ETH/USDT:data/ETHUSDT-l2update.csv \
+  --pair ETH/BTC:data/ETHBTC-l2update.csv \
+  --latency-ns 500000 \
+  --taker-fee-bps 1.0 \
+  --max-cycle-notional-usdt 1000 \
+  --min-cycle-edge-bps 0.5
+```
+
+The script prints:
+
+- asset id mapping,
+- event counts,
+- detected and completed cycles,
+- panic closes,
+- final quote balance,
+- mark-to-market NAV,
+- final balances.
+
+Use the sparse graph engine:
+
+```bash
+PYTHONPATH=build-release python3 scripts/run_graph_arbitrage.py \
+  --large-graph \
+  --pair BTC/USDT:data/BTCUSDT-l2update.csv \
+  --pair ETH/USDT:data/ETHUSDT-l2update.csv \
+  --pair ETH/BTC:data/ETHBTC-l2update.csv
+```
+
+## Python API
 
 ```python
 import yabe
@@ -51,64 +136,32 @@ engine = yabe.GraphEngine(
     initial_usdt=100_000_000,
     latency_ns=500_000,
     intra_leg_latency_ns=75,
-    taker_fee_bps=7.5,
+    taker_fee_bps=1.0,
     max_cycle_notional_usdt=1_000,
-    max_adverse_obi=0.2,
+    max_adverse_obi=1.0,
+    max_spread_bps=1_000,
+    min_depth_usdt=0,
     min_cycle_edge_bps=0.5,
-    max_book_levels_per_side=20,
+    cycle_snapshot_reserve=100_000,
+    quote_asset="USDT",
+    max_book_levels_per_side=100,
 )
 
-engine.add_pair("BTC", "USDT", "data/tardis/BTCUSDT-l2update-2024-03-01.csv")
-engine.add_pair("ETH", "USDT", "data/tardis/ETHUSDT-l2update-2024-03-01.csv")
-engine.add_pair("ETH", "BTC", "data/tardis/ETHBTC-l2update-2024-03-01.csv")
+engine.add_pair("BTC", "USDT", "data/BTCUSDT-l2update.csv")
+engine.add_pair("ETH", "USDT", "data/ETHUSDT-l2update.csv")
+engine.add_pair("ETH", "BTC", "data/ETHBTC-l2update.csv")
 
 result = engine.run()
 
 print(engine.assets)
-print(result.final_nav, result.inventory_risk, result.balances)
-```
-
-The graph engine currently supports:
-- Bellman-Ford negative-cycle detection.
-- Compile-time lookup policies:
-  - `GraphEngine`: dense O(1) lookup tables, best for small graphs.
-  - `GraphEngineLarge`: sparse adjacency/route lookup, best for large sparse graphs.
-- Stable graph topology: directed edges are built once, then rates/capacities update in place.
-- Raw L2Update replay into capped top-N visible books via `max_book_levels_per_side`.
-- Dynamic cycle rotation so tradable cycles start/end in `USDT`.
-- Fee-aware bottleneck sizing.
-- Latency-delayed pending cycle execution.
-- Current-depth execution revalidation before each pending leg.
-- Non-mutating quote simulation at signal time; live book depletion happens only at execution time.
-- Dynamic wallet balances for arbitrary assets.
-- Pessimistic panic close with a penalty for size beyond visible top-of-book liquidity.
-- Smart order router filters: adverse OBI, spread, visible depth, and minimum theoretical cycle edge after taker fees.
-
-For CLI-style research runs:
-
-```bash
-PYTHONPATH=build-release python3 scripts/run_graph_arbitrage.py \
-  --pair BTC/USDT:data/tardis/BTCUSDT-l2update-2024-03-01.csv \
-  --pair ETH/USDT:data/tardis/ETHUSDT-l2update-2024-03-01.csv \
-  --pair ETH/BTC:data/tardis/ETHBTC-l2update-2024-03-01.csv \
-  --latency-ns 500000 \
-  --taker-fee-bps 7.5 \
-  --max-book-levels-per-side 20 \
-  --summary-csv results/graph_run.csv
-```
-
-Use `--large-graph` to select the sparse lookup policy:
-
-```bash
-PYTHONPATH=build-release python3 scripts/run_graph_arbitrage.py \
-  --large-graph \
-  --pair BTC/USDT:data/tardis/BTCUSDT-l2update-2024-03-01.csv \
-  --pair ETH/USDT:data/tardis/ETHUSDT-l2update-2024-03-01.csv \
-  --pair ETH/BTC:data/tardis/ETHBTC-l2update-2024-03-01.csv \
-  --max-book-levels-per-side 20
+print(result.events_processed)
+print(result.completed_cycles)
+print(result.final_nav)
+print(result.balances)
 ```
 
 `GraphResult` exposes:
+
 - `events_processed`
 - `cycles_detected`
 - `attempted_cycles`
@@ -122,341 +175,206 @@ PYTHONPATH=build-release python3 scripts/run_graph_arbitrage.py \
 - `balances`
 - `last_cycle`
 - `cycle_snapshot_count`
+- `cycle_snapshots_overwritten`
+- `get_cycle_snapshots_dataframe()`
 
-Key execution filters:
-- `--max-adverse-obi`: rejects buys when bid-side imbalance is too strong and rejects sells when ask-side pressure is too strong. `1.0` disables the filter.
-- `--max-spread-bps`: rejects cycles touching pairs with wide spreads. `1000` is effectively permissive for most liquid markets.
-- `--min-depth-usdt`: rejects cycles when visible top-of-book depth is too shallow in USDT terms.
-- `--min-cycle-edge-bps`: requires a minimum theoretical cycle edge after taker fees before the cycle is sent to the latency heap.
-- `--max-book-levels-per-side`: caps retained visible depth per side. Use `20` for fast iteration and `100` for sanity checks against deeper visible liquidity.
-- `--large-graph`: uses `GraphEngineLarge` and the sparse lookup policy.
+`yabe.GraphEngineLarge` exposes the same constructor and methods as `yabe.GraphEngine`.
 
-## Data Sources
+## Tardis Data Conversion
 
-YABE supports four data paths:
+Convert Tardis `incremental_book_L2` CSV or CSV.GZ files into YABE's raw L2 update schema:
 
-1. Trade replay for the older `TriangularEngine`.
-2. L1/bookTicker-style replay for older graph experiments.
-3. Depth-5 replay for compatibility with prior Tardis experiments.
-4. Raw `L2Update` replay for the current graph research path.
-
-The backward-compatible L1 CSV format is:
-
-```csv
-timestamp,bid_price,bid_qty,ask_price,ask_qty
+```bash
+python3 scripts/tardis_to_l2update.py \
+  data/tardis/tardis-binance-BTCUSDT-incremental_book_L2-2024-03-01.csv.gz \
+  -o data/tardis/tardis-binance-BTCUSDT-l2update-2024-03-01.csv
 ```
 
-The legacy Depth-5 CSV format is:
+Then pass the generated file to `scripts/run_graph_arbitrage.py` with `--pair`.
 
-```csv
-timestamp,b1_p,b1_q,b2_p,b2_q,b3_p,b3_q,b4_p,b4_q,b5_p,b5_q,a1_p,a1_q,a2_p,a2_q,a3_p,a3_q,a4_p,a4_q,a5_p,a5_q
-```
+The older `scripts/tardis_to_depth5.py` converter emits fixed top-five snapshots. That format is useful for older experiments but loses raw delta fidelity.
 
-The current preferred graph CSV format is `L2Update`:
+## Single-Asset Backtesting
+
+YABE now has two separate single-asset paths. They intentionally use different parsers and event models.
+
+`BacktestEngine` replays one trade/order stream into a local matching `OrderBook`, routes events through a `Strategy`, simulates latency, tracks fills, cash, position, equity, and maker/taker diagnostics. It uses `CsvParser`, which parses trade/order-style rows into `Order` events.
+
+`L2BacktestEngine` replays one external L2 update stream through `L2UpdateCsvParser` and maintains an `L2OrderBook` directly from normalized exchange depth rows:
 
 ```csv
 timestamp,is_snapshot,is_bid,price,qty
 ```
 
-Rows represent absolute price-level quantities. `qty <= 0` removes a level. The graph engine batches rows with the same timestamp, applies them to capped `L2OrderBook` views, then runs cycle detection once for that timestamp batch.
+Use `L2BacktestEngine` for Hyperliquid-style market-making research where the input is already a captured market book stream rather than a sequence of historical orders.
 
-### Spot Data Caveat
+The L2 path does the following:
 
-Binance Vision provides spot daily `trades`, but spot daily `bookTicker` archives are not available for the BTCUSDT/ETHUSDT/ETHBTC path used in examples. The helper script therefore tries real spot `bookTicker` first and, if it receives `404`, falls back to a synthetic BBO generated from spot trades:
+- batches all L2 rows with the same timestamp,
+- applies snapshots and incremental level updates to `L2OrderBook`,
+- calls native `L2Strategy::on_tick(...)` once per timestamp batch after both sides exist,
+- keeps a legacy `Strategy` adapter mode for existing `OrderBook`-based strategies,
+- releases submitted strategy orders after `latency_ns`,
+- sweeps visible L2 depth for aggressive taker fills,
+- lets passive orders fill as maker when later L2 updates cross their prices,
+- tracks cash, position, NAV/equity, maker/taker fill diagnostics, active orders, and dropped pending orders,
+- can record timestamped feature rows for ML datasets without calling back into Python during replay.
 
-```bash
-python3 scripts/download_bookticker_data.py \
-  --date 2024-03-05 \
-  --symbols BTCUSDT ETHUSDT ETHBTC
-```
+The native path avoids rebuilding an `OrderBook` adapter every timestamp batch. New market-making research strategies should implement `L2Strategy` and consume `L2OrderBook` directly. The adapter `OrderBook` exists only so current strategies can consume BBO and L2 snapshots through the existing `Strategy` interface. The authoritative replay state remains the `L2OrderBook`; the external L2 rows are not shoehorned into `CsvParser`.
 
-This writes:
+The repository includes basic strategy implementations:
 
-```text
-data/BTCUSDT-bookTicker-2024-03-05.csv
-data/ETHUSDT-bookTicker-2024-03-05.csv
-data/ETHBTC-bookTicker-2024-03-05.csv
-```
+- `L2MarketMakerStrategy`: native L2 market maker that reads effective visible BBO directly from `L2OrderBook`.
+- `MarketMakerStrategy`: legacy adapter strategy that periodically cancels and replaces symmetric bid/ask quotes around the mid.
+- `InventorySkewStrategy`: market-making with inventory skew and simple internal-book L2 imbalance filtering.
 
-The fallback is useful for pipeline testing, Python API work, and stress-testing the OMS. It is not a real historical L2 dataset and should not be used for final quantitative conclusions.
-
-### Futures and External L2 Data
-
-Binance Vision does provide `bookTicker` archives for some futures markets, for example under:
-
-```text
-data/futures/um/daily/bookTicker/
-```
-
-Those files can be normalized to the same `timestamp,bid_price,bid_qty,ask_price,ask_qty` schema and fed into `GraphEngine`. External feeds such as Hyperliquid data should use the same schema for plug-and-play replay. Once the CSV is normalized, add pairs manually:
+The `lob_backtest` binary uses `InventorySkewStrategy` for the single-file path:
 
 ```bash
-PYTHONPATH=build-release python3 scripts/run_graph_arbitrage.py \
-  --pair BTC/USDT:data/BTCUSDT-bookTicker-2024-03-05.csv \
-  --pair ETH/USDT:data/ETHUSDT-bookTicker-2024-03-05.csv \
-  --pair ETH/BTC:data/ETHBTC-bookTicker-2024-03-05.csv
-```
-
-### Tardis.dev Tick L2
-
-For higher fidelity research, Tardis.dev exposes free historical CSV datasets for the first day of each month. Download incremental L2 diffs:
-
-```bash
-python3 scripts/download_tardis.py \
-  --exchange binance \
-  --date 2024-03-01 \
-  --symbols BTCUSDT ETHUSDT ETHBTC
-```
-
-Convert diffs to YABE's current `L2Update` schema:
-
-```bash
-python3 scripts/tardis_to_l2update.py \
-  data/tardis/tardis-binance-BTCUSDT-incremental_book_L2-2024-03-01.csv.gz \
-  -o data/tardis/BTCUSDT-l2update-2024-03-01.csv
-
-python3 scripts/tardis_to_l2update.py \
-  data/tardis/tardis-binance-ETHUSDT-incremental_book_L2-2024-03-01.csv.gz \
-  -o data/tardis/ETHUSDT-l2update-2024-03-01.csv
-
-python3 scripts/tardis_to_l2update.py \
-  data/tardis/tardis-binance-ETHBTC-incremental_book_L2-2024-03-01.csv.gz \
-  -o data/tardis/ETHBTC-l2update-2024-03-01.csv
-```
-
-Then run the graph engine:
-
-```bash
-PYTHONPATH=build-release python3 scripts/run_graph_arbitrage.py \
-  --pair BTC/USDT:data/tardis/BTCUSDT-l2update-2024-03-01.csv \
-  --pair ETH/USDT:data/tardis/ETHUSDT-l2update-2024-03-01.csv \
-  --pair ETH/BTC:data/tardis/ETHBTC-l2update-2024-03-01.csv \
-  --latency-ns 500000 \
+./build-release/lob_backtest data/BTCUSDT-trades.csv \
+  --maker-fee-bps -1.0 \
   --taker-fee-bps 7.5 \
-  --max-book-levels-per-side 20
+  --base-latency-ns 500000
 ```
 
-The converter preserves raw L2 price-level rows in YABE's replay schema. The C++ engine owns book mutation and caps the visible execution view with `max_book_levels_per_side`. The older `tardis_to_depth5.py` and `tardis_to_bookticker.py` converters are still available for compatibility and lightweight experiments.
-
-Recent Tardis spot raw L2Update run:
-
-```text
-BTCUSDT: 23,766,561 L2Update rows
-ETHUSDT: 20,236,011 L2Update rows
-ETHBTC: 1,625,907 L2Update rows
-Total processed events: 45,628,476
-```
-
-Current reference result on `2024-03-01` Tardis spot raw L2Update, cap 20:
-
-```text
-latency_ns=500000
-taker_fee_bps=7.5
-max_book_levels_per_side=20
-PnL=+$40.3445859551
-cycles=29
-completed=24
-panic=5
-```
-
-Run that configuration:
+Optional positional parameters tune the inventory-skew strategy:
 
 ```bash
-PYTHONPATH=build-release python3 scripts/run_graph_arbitrage.py \
-  --pair BTC/USDT:data/tardis/BTCUSDT-l2update-2024-03-01.csv \
-  --pair ETH/USDT:data/tardis/ETHUSDT-l2update-2024-03-01.csv \
-  --pair ETH/BTC:data/tardis/ETHBTC-l2update-2024-03-01.csv \
-  --latency-ns 500000 \
-  --taker-fee-bps 7.5 \
-  --max-book-levels-per-side 20 \
-  --summary-csv results/tardis_l2update_graph_2024-03-01.csv
+./build-release/lob_backtest data/BTCUSDT-trades.csv 10.0 2.0 3.0
 ```
 
-## Performance
+Those values are:
 
-Tested locally in a `Release` build on Apple Silicon.
+- base spread,
+- inventory risk-aversion gamma,
+- L2 imbalance threshold.
 
-Recent Graph Engine runs (Release build on Apple Silicon):
+`MarketMakerStrategy` is available as a C++ strategy class for users embedding `BacktestEngine` directly.
 
-**Raw L2Update Tardis, cap 20 (45.63M events)**:
-- `GraphEngine`: `6.51s`, `7.01M EPS`, PnL `+$40.3445859551 USDT`
-- `GraphEngineLarge`: `6.06s`, `7.53M EPS`, PnL `+$40.3445859551 USDT`
-- Cycles Detected: `29`
-- Completed Cycles: `24`
-- Panic Closes: `5`
+Minimal C++ usage for the L2 path:
 
-**Raw L2Update Tardis, cap 100 (45.63M events)**:
-- Wall Time: `7.95s`
-- Throughput: `5.74M EPS`
-- PnL: `+$40.3467098325 USDT`
+```cpp
+#include "lob/l2_backtest_engine.hpp"
+#include "lob/l2_market_maker_strategy.hpp"
 
-**Legacy Depth-5 Tardis (1.77M events)**:
-- Median Throughput: `2.28M EPS`
-- PnL: `+$37.20 USDT`
+lob::L2MarketMakerStrategy strategy {lob::L2MarketMakerStrategy::Config {
+    .quote_offset = 0.5,
+    .quote_quantity = 1'000'000,
+    .refresh_interval_ns = 1'000'000'000ULL,
+}};
 
-**L1 bookTicker (9.00M events)**:
-- Median Throughput: `2.95M EPS`
-- Cycles Detected: `81,728`
-- Panic Closes: `64,962`
-- PnL: `+$9,205.05 USDT`
+lob::L2BacktestEngine engine {strategy, lob::L2BacktestEngine::Config {
+    .initial_cash = 100'000'000.0,
+    .maker_fee_bps = 0.0,
+    .taker_fee_bps = 7.5,
+    .latency_ns = 500'000,
+    .max_book_levels_per_side = 20,
+    .record_features = true,
+}};
 
-## Foundation Roadmap
-
-The current foundation is ready for separate Hyperliquid, Polymarket, and ML/RL research branches. The next architecture work should stay additive:
-
-- **Venue-normalized replay**: immutable replay logs with venue/product ids, exchange/receive timestamps, sequence ids, snapshot epochs, checksum/gap policy, absolute-vs-delta semantics, and integer ticks/lots.
-- **Venue manifests**: assets, products, tick/lot scales, fee/cost models, collateral, settlement domains, and synthetic transform declarations.
-- **Canonical full-depth books**: maintain full venue state separately from capped top-N execution views.
-- **Typed executable edges**: order-book taker edges, static conversion edges, and Polymarket-style multi-input/multi-output transforms.
-- **Feature export**: deterministic snapshots for spread, OBI, depth bands, microprice, cycle edge, latency outcome, and execution label generation.
-
-## Quick Start
-
-```bash
-# Build the project
-cmake -B build-release -DCMAKE_BUILD_TYPE=Release
-cmake --build build-release
-
-# Run unit tests
-ctest --test-dir build-release --output-on-failure
-
-# Run backtest with async logging enabled
-./build-release/lob_backtest \
-    BTCUSDT-trades.csv \
-    ETHUSDT-trades.csv \
-    ETHBTC-trades.csv \
-    --async-log /tmp/async_log.csv
+lob::L2BacktestEngine::Result result = engine.run("data/HYPEUSDC-l2update.csv");
 ```
 
-The backtester will output a human-readable summary, execution diagnostics, per-asset breakdown, and a final machine-readable `RESULT_TRI_CSV`.
+Python can run the native C++ L2 market-maker path with the GIL released for the full replay loop:
 
-## Python API
+```python
+import yabe
 
-Build the Python extension:
+engine = yabe.L2MarketMakerBacktest(
+    max_book_levels_per_side=20,
+    quote_offset=0.5,
+    quote_quantity=1_000_000,
+    latency_ns=500_000,
+    record_features=True,
+)
 
-```bash
-cmake -B build-release -DCMAKE_BUILD_TYPE=Release
-cmake --build build-release --target yabe
+result = engine.run("data/tardis/BTCUSDT-l2update-2024-03-01.csv")
+features = result.get_features_dataframe()
+print(result.events_processed, result.pnl, len(features["timestamp"]))
 ```
 
-The module is emitted as:
+## TriangularEngine
 
-```bash
-build-release/yabe.so
-```
+`TriangularEngine` models a fixed three-pair BTC/ETH/USDT strategy over the older multi-asset backtest path. It includes OMS behavior such as latency, order groups, panic close, and fee-aware sizing.
 
-Use it from Python by adding the build directory to `PYTHONPATH`. The high-level research API is `run_triangular(...)`, which behaves like a pure function: input files plus parameters produce a `BacktestResult`.
+Example:
 
 ```bash
 PYTHONPATH=build-release python3 - <<'PY'
 import yabe
 
-paths = [
-    "data/BTCUSDT-trades-2024-03-05.csv",
-    "data/ETHUSDT-trades-2024-03-05.csv",
-    "data/ETHBTC-trades-2024-03-05.csv",
-]
-
 result = yabe.run_triangular(
-    paths,
+    [
+        "data/BTCUSDT-trades.csv",
+        "data/ETHUSDT-trades.csv",
+        "data/ETHBTC-trades.csv",
+    ],
     latency_ns=500_000,
     maker_fee_bps=-1.0,
     taker_fee_bps=7.5,
     verbose=False,
 )
 
-wallet = result.wallet
-
-print("USDT:", wallet.usdt)
-print("BTC:", wallet.btc)
-print("ETH:", wallet.eth)
-print("NAV:", result.nav)
-print("Inventory risk:", result.inventory_risk)
-print("Events:", result.events_processed)
+print(result.events_processed)
+print(result.nav)
 PY
 ```
 
-`BacktestResult` exposes:
-- `wallet`
-- `nav`
-- `inventory_risk`
-- `events_processed`
-- `taker_notional`
-- `dropped_orders`
+Use this path for multi-asset OMS research and regression coverage. Use `GraphEngine` or `GraphEngineLarge` for new dynamic graph work.
 
-`Wallet.balance(asset_id)` uses the Python-facing wallet ids:
-- `0 = USDT`
-- `1 = BTC`
-- `2 = ETH`
+## Performance Notes
 
-For advanced use, `TriangularEngine` can also be configured immutably via its constructor:
+The graph replay loop is designed to avoid Python involvement during execution. `GraphEngine.run()` is exposed with `py::gil_scoped_release`, so Python threads are not blocked by the C++ replay loop.
 
-```python
-engine = yabe.TriangularEngine(
-    latency_ns=500_000,
-    maker_fee_bps=-1.0,
-    taker_fee_bps=7.5,
-    verbose=False,
-)
+Hot-path design goals:
 
-result = engine.run(paths)
-```
+- mmap-backed input parsing,
+- preallocated runtime vectors,
+- no per-row Python objects,
+- static graph edge topology after runtime preparation,
+- fixed-capacity pending-cycle heap,
+- bounded cycle snapshot ring.
 
-Both `run_triangular(...)` and `TriangularEngine.run(...)` are quiet by default and release the Python GIL while the C++ replay loop is running. This makes threaded parameter sweeps possible, though large CSV replays are also limited by memory bandwidth and page-cache pressure.
+Current performance claims should be treated as local benchmarks, not universal guarantees. Throughput depends heavily on event density, number of pairs, graph size, page-cache state, compiler settings, and whether raw L2 deltas cause one graph search per update.
 
-### Microstructure Snapshots
+## Known Limitations
 
-For L1 research features such as OFI, BBO imbalance, and short-horizon momentum, use `TriangularEngine` and enable microstructure recording before `run(...)`:
+The current graph model is not yet a full venue-neutral HFT simulator.
 
-```python
-import pandas as pd
-import yabe
+Important gaps:
 
-engine = yabe.TriangularEngine(
-    latency_ns=500_000,
-    maker_fee_bps=-1.0,
-    taker_fee_bps=7.5,
-)
+- Raw L2 events do not include sequence ids, checksums, or gap-recovery metadata.
+- Book prices and quantities are stored as floating-point values, not venue-scaled integers.
+- `max_book_levels_per_side` caps retained levels, so the local book can lose deeper state.
+- Bellman-Ford runs over the full graph after each timestamp batch.
+- Fees are modeled as a single global taker fee.
+- Edge semantics assume simple two-asset order-book conversions.
+- Synthetic Polymarket-style mint/redeem edges are not represented.
+- Venue-specific concepts such as funding, collateral, gas, settlement, contract multipliers, and tick-size rules are not first-class configuration.
 
-# 0 records every update. Use a positive interval to control RAM usage.
-engine.enable_microstructure_recording(True, sampling_interval_ns=1_000_000_000)
-result = engine.run(paths)
+These are architectural constraints, not just missing parameters. Hyperliquid and Polymarket integration should start by introducing venue/product manifests, fixed-point market metadata, sequence-aware feed envelopes, and typed graph edges.
 
-arrays = engine.get_microstructure_dataframe()
-df = pd.DataFrame(arrays)
+The repository already has early foundation types for manifests and replay validation in `include/lob/venue_manifest.hpp` and `include/lob/venue_replay.hpp`. They are not yet wired into `GraphEngine` ingestion.
 
-df["mid"] = (df["bid_price"] + df["ask_price"]) * 0.5
-df["imbalance"] = (df["bid_qty"] - df["ask_qty"]) / (df["bid_qty"] + df["ask_qty"])
-```
+## Development Notes
 
-`get_microstructure_dataframe()` returns a dictionary of NumPy arrays, not Python objects:
-- `timestamp`
-- `asset_id`
-- `bid_price`
-- `bid_qty`
-- `ask_price`
-- `ask_qty`
-
-## Latency and OMS Simulation
-
-The engine realistically models network and matching engine conditions:
-
-- `--maker-fee-bps` / `--taker-fee-bps`: Exchange spot fees.
-- `--base-latency-ns`: Deterministic base latency added to network requests.
-- `--latency-dist`: Distributions (`none`, `exponential`, `lognormal`) for simulating network jitter.
-- Atomic triangular execution also applies a nanosecond-scale intra-leg latency and jitter between legs inside the C++ OMS.
-
-Orders and groups are held in a static `PendingOrderMinHeap` and released when virtual time catches up.
-
-## Visualization Dashboard
-
-The backtest outputs an asynchronous log containing every fill, panic close, and MTM NAV update. You can build a 3-panel Plotly dashboard:
+Useful commands:
 
 ```bash
-python3 scripts/analyze_results.py /tmp/async_log.csv -o /tmp/hft_dashboard.html
+cmake -B build-release -DCMAKE_BUILD_TYPE=Release
+cmake --build build-release
+ctest --test-dir build-release --output-on-failure
 ```
 
-The generated `hft_dashboard.html` features:
-1. **Total Equity / NAV**: Mark-to-Market portfolio value over virtual time.
-2. **Prices & Trade Markers**: Mid-prices with color-coded BUY/SELL `go.Scattergl` markers.
-3. **Inventory Trace**: Cumulative position for each asset, validating the zero-dust fee-aware sizing.
+Run benchmarks:
+
+```bash
+cmake --build build-release --target lob_benchmarks
+./build-release/lob_benchmarks
+```
+
+Run the graph helper:
+
+```bash
+PYTHONPATH=build-release python3 scripts/run_graph_arbitrage.py --help
+```

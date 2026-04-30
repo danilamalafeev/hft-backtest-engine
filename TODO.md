@@ -9,6 +9,7 @@
 - [x] **Execution Correctness Fixes**: Restored full Bellman-Ford correctness, non-mutating signal-time quote simulation, current-depth revalidation at execution, and chronological pending-leg processing.
 - [x] **Foundation Replay Types**: Added venue-normalized replay envelope primitives and sequence validation helpers.
 - [x] **Foundation Manifest Types**: Added manifest structs for assets, products, tick/lot scales, fee models, and settlement domains.
+- [x] **Single-Asset L2 Replay Path**: Added `L2BacktestEngine`, native `L2Strategy`, native `L2MarketMakerStrategy`, latency-delayed visible-depth fills, feature rows, and a GIL-released Python runner for L2 market-making experiments.
 
 ## Next Core Work
 
@@ -20,9 +21,10 @@
 - [ ] **Typed Edge Cost Models**: Replace the single global taker fee multiplier with per-edge cost models covering proportional fees, fixed fees, gas, funding, collateral currency, and contract multipliers.
 - [ ] **Typed Executable Edges**: Add order-book taker edges, static conversion edges, and synthetic transform edges for Polymarket-style YES/NO bundles and settlement transforms.
 - [ ] **Incremental Cycle Detection Research**: Keep full Bellman-Ford as the correctness verifier, but investigate dirty-edge or affected-region relaxation for larger product graphs.
+- [ ] **Richer Single-Asset Labels**: Extend `L2BacktestEngine` feature export with realized forward returns, queue-position approximations, adverse selection labels, fill probability labels, and latency outcome labels.
 
 ## Research Branches To Cut From Foundation
 
 - [ ] **Hyperliquid Research**: Build a Hyperliquid adapter/converter into the normalized replay format, including venue sequencing and product metadata.
 - [ ] **Polymarket CLOB Arbitrage**: Model outcome tokens, complement bundles, settlement domains, mint/redeem transforms, gas/fixed costs, and exact cent arithmetic.
-- [ ] **ML/RL Feature Export**: Add deterministic feature snapshots for spread, OBI, depth bands, microprice, cycle edge bps, latency outcome, panic close outcome, and realized execution label generation.
+- [ ] **ML/RL Feature Export**: Extend deterministic feature snapshots beyond the current L2 spread/OBI/depth/NAV rows to include depth bands, microprice, cycle edge bps, latency outcome, panic close outcome, and realized execution label generation.

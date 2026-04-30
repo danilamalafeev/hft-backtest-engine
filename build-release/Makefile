@@ -423,6 +423,30 @@ src/csv_parser.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/lob_core.dir/build.make CMakeFiles/lob_core.dir/src/csv_parser.cpp.s
 .PHONY : src/csv_parser.cpp.s
 
+src/l2_backtest_engine.o: src/l2_backtest_engine.cpp.o
+.PHONY : src/l2_backtest_engine.o
+
+# target to build an object file
+src/l2_backtest_engine.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/lob_core.dir/build.make CMakeFiles/lob_core.dir/src/l2_backtest_engine.cpp.o
+.PHONY : src/l2_backtest_engine.cpp.o
+
+src/l2_backtest_engine.i: src/l2_backtest_engine.cpp.i
+.PHONY : src/l2_backtest_engine.i
+
+# target to preprocess a source file
+src/l2_backtest_engine.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/lob_core.dir/build.make CMakeFiles/lob_core.dir/src/l2_backtest_engine.cpp.i
+.PHONY : src/l2_backtest_engine.cpp.i
+
+src/l2_backtest_engine.s: src/l2_backtest_engine.cpp.s
+.PHONY : src/l2_backtest_engine.s
+
+# target to generate assembly for a file
+src/l2_backtest_engine.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/lob_core.dir/build.make CMakeFiles/lob_core.dir/src/l2_backtest_engine.cpp.s
+.PHONY : src/l2_backtest_engine.cpp.s
+
 src/l2_csv_parser.o: src/l2_csv_parser.cpp.o
 .PHONY : src/l2_csv_parser.o
 
@@ -604,6 +628,9 @@ help:
 	@echo "... src/csv_parser.o"
 	@echo "... src/csv_parser.i"
 	@echo "... src/csv_parser.s"
+	@echo "... src/l2_backtest_engine.o"
+	@echo "... src/l2_backtest_engine.i"
+	@echo "... src/l2_backtest_engine.s"
 	@echo "... src/l2_csv_parser.o"
 	@echo "... src/l2_csv_parser.i"
 	@echo "... src/l2_csv_parser.s"

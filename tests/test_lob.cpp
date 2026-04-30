@@ -14,11 +14,17 @@
 #include "lob/dynamic_wallet.hpp"
 #include "lob/event_merger.hpp"
 #include "lob/graph_arbitrage_engine.hpp"
+#include "lob/l2_backtest_engine.hpp"
+#include "lob/l2_market_maker_strategy.hpp"
 #include "lob/l2_order_book.hpp"
 #include "lob/l2_depth5_csv_parser.hpp"
 #include "lob/l2_update_csv_parser.hpp"
+#include "lob/market_maker_strategy.hpp"
 #include "lob/multi_asset_backtest_engine.hpp"
 #include "lob/order_book.hpp"
+#include "lob/PolymarketFeedAdapter.hpp"
+#include "lob/PolymarketOrderBook.hpp"
+#include "lob/PolymarketTypes.hpp"
 #include "lob/venue_manifest.hpp"
 #include "lob/venue_replay.hpp"
 
@@ -203,6 +209,81 @@ TEST(L2OrderBookTest, RemovesLevelsNotPresentInSnapshotWithoutClearingRetainedDe
     EXPECT_DOUBLE_EQ(book.bids()[1].price, 100.0);
     EXPECT_DOUBLE_EQ(book.bids()[1].depleted_qty, 2.0);
     EXPECT_DOUBLE_EQ(book.effective_qty(true, 99.0), 0.0);
+}
+
+TEST(PolymarketOrderBookTest, MaintainsDepthByCentIndexAndFindsBboWithMasks) {
+    lob::PolymarketOrderBook book {};
+
+    EXPECT_TRUE(book.apply_delta(lob::Side::Buy, lob::PriceCents {42U}, 10.0));
+    EXPECT_TRUE(book.apply_delta(lob::Side::Buy, lob::PriceCents {97U}, 4.0));
+    EXPECT_TRUE(book.apply_delta(lob::Side::Sell, lob::PriceCents {55U}, 7.0));
+    EXPECT_TRUE(book.apply_delta(lob::Side::Sell, lob::PriceCents {12U}, 2.0));
+
+    const lob::PolymarketOrderBook::BBO bbo = book.get_bbo();
+    ASSERT_TRUE(bbo.has_bid());
+    ASSERT_TRUE(bbo.has_ask());
+    EXPECT_EQ(bbo.bid.price_cents, lob::PriceCents {97U});
+    EXPECT_DOUBLE_EQ(bbo.bid.size, 4.0);
+    EXPECT_EQ(bbo.ask.price_cents, lob::PriceCents {12U});
+    EXPECT_DOUBLE_EQ(bbo.ask.size, 2.0);
+    EXPECT_DOUBLE_EQ(book.bids()[97U], 4.0);
+    EXPECT_DOUBLE_EQ(book.asks()[12U], 2.0);
+}
+
+TEST(PolymarketOrderBookTest, RemovesTopLevelAndRejectsOutOfRangePrices) {
+    lob::PolymarketOrderBook book {};
+
+    EXPECT_FALSE(book.apply_delta(lob::Side::Buy, lob::PriceCents {0U}, 1.0));
+    EXPECT_FALSE(book.apply_delta(lob::Side::Sell, lob::PriceCents {100U}, 1.0));
+    EXPECT_TRUE(book.apply_delta(lob::Side::Buy, lob::PriceCents {98U}, 1.0));
+    EXPECT_TRUE(book.apply_delta(lob::Side::Buy, lob::PriceCents {99U}, 2.0));
+    EXPECT_EQ(book.best_bid_price_cents(), lob::PriceCents {99U});
+
+    EXPECT_TRUE(book.apply_delta(lob::Side::Buy, lob::PriceCents {99U}, 0.0));
+    EXPECT_EQ(book.best_bid_price_cents(), lob::PriceCents {98U});
+    EXPECT_DOUBLE_EQ(book.depth(lob::Side::Buy, lob::PriceCents {99U}), 0.0);
+    EXPECT_DOUBLE_EQ(book.depth(lob::Side::Buy, lob::PriceCents {98U}), 1.0);
+}
+
+TEST(PolymarketFeedAdapterTest, RoutesDenseTokenUpdatesToBoundBooks) {
+    lob::PolymarketOrderBook yes_book {};
+    lob::PolymarketOrderBook no_book {};
+    std::array<lob::PolymarketOrderBook*, 4U> books_by_token {};
+    lob::PolymarketFeedAdapter adapter {books_by_token};
+
+    ASSERT_TRUE(adapter.bind_book(lob::TokenId {1U}, yes_book));
+    ASSERT_TRUE(adapter.bind_book(lob::TokenId {2U}, no_book));
+
+    EXPECT_TRUE(adapter.on_l2_update(lob::PolymarketL2Update {
+        .timestamp_ns = 1U,
+        .market_id = lob::MarketId {7U},
+        .token_id = lob::TokenId {1U},
+        .side = lob::Side::Buy,
+        .price_cents = lob::PriceCents {64U},
+        .new_size = 12.0,
+        .is_snapshot = false,
+    }));
+    EXPECT_TRUE(adapter.on_l2_update(lob::PolymarketL2Update {
+        .timestamp_ns = 2U,
+        .market_id = lob::MarketId {7U},
+        .token_id = lob::TokenId {2U},
+        .side = lob::Side::Sell,
+        .price_cents = lob::PriceCents {36U},
+        .new_size = 8.0,
+        .is_snapshot = false,
+    }));
+
+    EXPECT_EQ(yes_book.best_bid_price_cents(), lob::PriceCents {64U});
+    EXPECT_EQ(no_book.best_ask_price_cents(), lob::PriceCents {36U});
+    EXPECT_FALSE(adapter.on_l2_update(lob::PolymarketL2Update {
+        .timestamp_ns = 3U,
+        .market_id = lob::MarketId {7U},
+        .token_id = lob::TokenId {3U},
+        .side = lob::Side::Buy,
+        .price_cents = lob::PriceCents {50U},
+        .new_size = 1.0,
+        .is_snapshot = false,
+    }));
 }
 
 TEST(DynamicWalletTest, TracksReservedAndFreeBalances) {
@@ -635,6 +716,375 @@ TEST(VenueManifestTest, DescribesVenueProductScalesAndCosts) {
     EXPECT_EQ(manifest.products[0].product_id, 42U);
     EXPECT_EQ(manifest.products[0].price_tick_scale, 100);
     EXPECT_EQ(manifest.cost_models[0].proportional_fee_bps, 7.5);
+}
+
+class CountingL2Strategy final : public lob::Strategy {
+public:
+    void on_tick(lob::AssetID asset_id, const lob::OrderBook& book, lob::OrderGateway& gateway) override {
+        last_asset_id = asset_id;
+        last_timestamp = gateway.current_timestamp();
+        last_best_bid = book.get_best_bid();
+        last_best_ask = book.get_best_ask();
+        ++ticks;
+    }
+
+    std::uint64_t ticks {};
+    lob::AssetID last_asset_id {};
+    std::uint64_t last_timestamp {};
+    double last_best_bid {};
+    double last_best_ask {};
+};
+
+class SubmitOnceL2Strategy final : public lob::Strategy {
+public:
+    SubmitOnceL2Strategy(lob::Side side, double price, std::uint64_t quantity)
+        : side_(side), price_(price), quantity_(quantity) {}
+
+    void on_start(lob::OrderGateway& gateway) override {
+        if (submit_on_start) {
+            order_id = gateway.submit_order(0U, side_, price_, quantity_, gateway.current_timestamp());
+            submitted = true;
+        }
+    }
+
+    void on_tick(lob::AssetID asset_id, const lob::OrderBook& book, lob::OrderGateway& gateway) override {
+        (void)book;
+        ++ticks;
+        if (!submitted) {
+            order_id = gateway.submit_order(asset_id, side_, price_, quantity_, gateway.current_timestamp());
+            submitted = true;
+        }
+    }
+
+    void on_fill(const lob::StrategyFill& fill, lob::OrderGateway& gateway) override {
+        (void)gateway;
+        ++fills;
+        last_fill = fill;
+    }
+
+    bool submit_on_start {};
+    bool submitted {};
+    std::uint64_t ticks {};
+    std::uint64_t fills {};
+    std::uint64_t order_id {};
+    lob::StrategyFill last_fill {};
+
+private:
+    lob::Side side_ {lob::Side::Buy};
+    double price_ {};
+    std::uint64_t quantity_ {};
+};
+
+class CountingNativeL2Strategy final : public lob::L2Strategy {
+public:
+    void on_tick(lob::AssetID asset_id, const lob::L2OrderBook& book, lob::OrderGateway& gateway) override {
+        last_asset_id = asset_id;
+        last_timestamp = gateway.current_timestamp();
+        last_best_bid = book.best_bid();
+        last_best_ask = book.best_ask();
+        last_bid_visible_qty = book.bid_effective_qty();
+        last_ask_visible_qty = book.ask_effective_qty();
+        ++ticks;
+    }
+
+    std::uint64_t ticks {};
+    lob::AssetID last_asset_id {};
+    std::uint64_t last_timestamp {};
+    double last_best_bid {};
+    double last_best_ask {};
+    double last_bid_visible_qty {};
+    double last_ask_visible_qty {};
+};
+
+class SubmitOnceNativeL2Strategy final : public lob::L2Strategy {
+public:
+    SubmitOnceNativeL2Strategy(lob::Side side, double price, std::uint64_t quantity)
+        : side_(side), price_(price), quantity_(quantity) {}
+
+    void on_tick(lob::AssetID asset_id, const lob::L2OrderBook& book, lob::OrderGateway& gateway) override {
+        (void)book;
+        ++ticks;
+        if (!submitted) {
+            order_id = gateway.submit_order(asset_id, side_, price_, quantity_, gateway.current_timestamp());
+            submitted = true;
+        }
+    }
+
+    void on_fill(const lob::StrategyFill& fill, lob::OrderGateway& gateway) override {
+        (void)gateway;
+        ++fills;
+        last_fill = fill;
+    }
+
+    bool submitted {};
+    std::uint64_t ticks {};
+    std::uint64_t fills {};
+    std::uint64_t order_id {};
+    lob::StrategyFill last_fill {};
+
+private:
+    lob::Side side_ {lob::Side::Buy};
+    double price_ {};
+    std::uint64_t quantity_ {};
+};
+
+TEST(L2BacktestEngineTest, InitializesFromSnapshotAndInvokesStrategyOnBatch) {
+    const std::filesystem::path path = std::filesystem::temp_directory_path() / "l2_backtest_snapshot.csv";
+    {
+        std::ofstream csv {path};
+        csv << "timestamp,is_snapshot,is_bid,price,qty\n"
+            << "1000,1,1,100,2\n"
+            << "1000,1,0,101,3\n";
+    }
+
+    CountingL2Strategy strategy {};
+    lob::L2BacktestEngine engine {strategy, lob::L2BacktestEngine::Config {
+        .quantity_scale = 1.0,
+        .max_book_levels_per_side = 10U,
+    }};
+
+    const lob::L2BacktestEngine::Result result = engine.run(path);
+
+    EXPECT_EQ(result.events_processed, 2U);
+    EXPECT_EQ(result.market_batches_processed, 1U);
+    EXPECT_EQ(result.strategy_ticks, 1U);
+    EXPECT_EQ(strategy.ticks, 1U);
+    EXPECT_DOUBLE_EQ(strategy.last_best_bid, 100.0);
+    EXPECT_DOUBLE_EQ(strategy.last_best_ask, 101.0);
+    EXPECT_DOUBLE_EQ(result.final_best_bid, 100.0);
+    EXPECT_DOUBLE_EQ(result.final_best_ask, 101.0);
+
+    std::filesystem::remove(path);
+}
+
+TEST(L2BacktestEngineTest, AppliesIncrementalUpdateAndDelete) {
+    const std::filesystem::path path = std::filesystem::temp_directory_path() / "l2_backtest_update_delete.csv";
+    {
+        std::ofstream csv {path};
+        csv << "timestamp,is_snapshot,is_bid,price,qty\n"
+            << "1000,1,1,100,2\n"
+            << "1000,1,0,101,3\n"
+            << "2000,0,1,100,0\n"
+            << "2000,0,1,99,4\n";
+    }
+
+    CountingL2Strategy strategy {};
+    lob::L2BacktestEngine engine {strategy, lob::L2BacktestEngine::Config {
+        .quantity_scale = 1.0,
+        .max_book_levels_per_side = 10U,
+    }};
+
+    const lob::L2BacktestEngine::Result result = engine.run(path);
+
+    EXPECT_EQ(result.events_processed, 4U);
+    EXPECT_EQ(result.market_batches_processed, 2U);
+    EXPECT_EQ(strategy.ticks, 2U);
+    EXPECT_DOUBLE_EQ(strategy.last_best_bid, 99.0);
+    EXPECT_DOUBLE_EQ(strategy.last_best_ask, 101.0);
+    EXPECT_DOUBLE_EQ(result.final_best_bid, 99.0);
+
+    std::filesystem::remove(path);
+}
+
+TEST(L2BacktestEngineTest, MarketMakerPlacesPassiveQuotesWithoutImmediateFill) {
+    const std::filesystem::path path = std::filesystem::temp_directory_path() / "l2_backtest_mm_quotes.csv";
+    {
+        std::ofstream csv {path};
+        csv << "timestamp,is_snapshot,is_bid,price,qty\n"
+            << "1000,1,1,100,10\n"
+            << "1000,1,0,102,10\n";
+    }
+
+    lob::MarketMakerStrategy strategy {lob::MarketMakerStrategy::Config {
+        .quote_offset = 0.5,
+        .quote_quantity = 2U,
+        .refresh_interval_ns = 1'000'000'000ULL,
+    }};
+    lob::L2BacktestEngine engine {strategy, lob::L2BacktestEngine::Config {
+        .quantity_scale = 1.0,
+        .max_book_levels_per_side = 10U,
+    }};
+
+    const lob::L2BacktestEngine::Result result = engine.run(path);
+
+    EXPECT_EQ(result.orders_submitted, 2U);
+    EXPECT_EQ(result.active_orders, 2U);
+    EXPECT_EQ(result.execution.maker_fills_count, 0U);
+    EXPECT_EQ(result.execution.taker_fills_count, 0U);
+
+    std::filesystem::remove(path);
+}
+
+TEST(L2BacktestEngineTest, LatencyDelayedAggressiveOrderFillsAgainstVisibleDepth) {
+    const std::filesystem::path path = std::filesystem::temp_directory_path() / "l2_backtest_latency_fill.csv";
+    {
+        std::ofstream csv {path};
+        csv << "timestamp,is_snapshot,is_bid,price,qty\n"
+            << "1000,1,1,100,10\n"
+            << "1000,1,0,101,10\n";
+    }
+
+    SubmitOnceL2Strategy strategy {lob::Side::Buy, 101.0, 3U};
+    lob::L2BacktestEngine engine {strategy, lob::L2BacktestEngine::Config {
+        .taker_fee_bps = 0.0,
+        .latency_ns = 100U,
+        .quantity_scale = 1.0,
+        .max_book_levels_per_side = 10U,
+    }};
+
+    const lob::L2BacktestEngine::Result result = engine.run(path);
+
+    EXPECT_EQ(strategy.fills, 1U);
+    EXPECT_EQ(result.execution.taker_fills_count, 1U);
+    EXPECT_EQ(result.last_fill_timestamp, 1100U);
+    EXPECT_EQ(result.final_position, 3);
+    EXPECT_DOUBLE_EQ(result.final_cash, 100'000'000.0 - (101.0 * 3.0));
+
+    std::filesystem::remove(path);
+}
+
+TEST(L2BacktestEngineTest, DoesNotFillBeforeBookExists) {
+    const std::filesystem::path path = std::filesystem::temp_directory_path() / "l2_backtest_no_prebook_fill.csv";
+    {
+        std::ofstream csv {path};
+        csv << "timestamp,is_snapshot,is_bid,price,qty\n"
+            << "1000,1,1,100,10\n"
+            << "1000,1,0,101,10\n";
+    }
+
+    SubmitOnceL2Strategy strategy {lob::Side::Buy, 101.0, 3U};
+    strategy.submit_on_start = true;
+    lob::L2BacktestEngine engine {strategy, lob::L2BacktestEngine::Config {
+        .quantity_scale = 1.0,
+        .max_book_levels_per_side = 10U,
+    }};
+
+    const lob::L2BacktestEngine::Result result = engine.run(path);
+
+    EXPECT_EQ(strategy.fills, 1U);
+    EXPECT_EQ(result.last_fill_timestamp, 1000U);
+    EXPECT_GT(result.last_fill_timestamp, 0U);
+
+    std::filesystem::remove(path);
+}
+
+TEST(L2BacktestEngineTest, NativeStrategyConsumesL2BookWithoutAdapter) {
+    const std::filesystem::path path = std::filesystem::temp_directory_path() / "l2_backtest_native_snapshot.csv";
+    {
+        std::ofstream csv {path};
+        csv << "timestamp,is_snapshot,is_bid,price,qty\n"
+            << "1000,1,1,100,2\n"
+            << "1000,1,1,99,3\n"
+            << "1000,1,0,101,4\n"
+            << "1000,1,0,102,5\n";
+    }
+
+    CountingNativeL2Strategy strategy {};
+    lob::L2BacktestEngine engine {strategy, lob::L2BacktestEngine::Config {
+        .quantity_scale = 1.0,
+        .max_book_levels_per_side = 10U,
+    }};
+
+    const lob::L2BacktestEngine::Result result = engine.run(path);
+
+    EXPECT_EQ(result.strategy_ticks, 1U);
+    EXPECT_EQ(strategy.ticks, 1U);
+    EXPECT_DOUBLE_EQ(strategy.last_best_bid, 100.0);
+    EXPECT_DOUBLE_EQ(strategy.last_best_ask, 101.0);
+    EXPECT_DOUBLE_EQ(strategy.last_bid_visible_qty, 5.0);
+    EXPECT_DOUBLE_EQ(strategy.last_ask_visible_qty, 9.0);
+
+    std::filesystem::remove(path);
+}
+
+TEST(L2BacktestEngineTest, NativeMarketMakerPlacesQuotes) {
+    const std::filesystem::path path = std::filesystem::temp_directory_path() / "l2_backtest_native_mm.csv";
+    {
+        std::ofstream csv {path};
+        csv << "timestamp,is_snapshot,is_bid,price,qty\n"
+            << "1000,1,1,100,10\n"
+            << "1000,1,0,102,10\n";
+    }
+
+    lob::L2MarketMakerStrategy strategy {lob::L2MarketMakerStrategy::Config {
+        .quote_offset = 0.5,
+        .quote_quantity = 2U,
+        .refresh_interval_ns = 1'000'000'000ULL,
+    }};
+    lob::L2BacktestEngine engine {strategy, lob::L2BacktestEngine::Config {
+        .quantity_scale = 1.0,
+        .max_book_levels_per_side = 10U,
+    }};
+
+    const lob::L2BacktestEngine::Result result = engine.run(path);
+
+    EXPECT_EQ(result.orders_submitted, 2U);
+    EXPECT_EQ(result.active_orders, 2U);
+    EXPECT_EQ(result.execution.maker_fills_count, 0U);
+    EXPECT_EQ(result.execution.taker_fills_count, 0U);
+
+    std::filesystem::remove(path);
+}
+
+TEST(L2BacktestEngineTest, NativeLatencyDelayedOrderFills) {
+    const std::filesystem::path path = std::filesystem::temp_directory_path() / "l2_backtest_native_latency.csv";
+    {
+        std::ofstream csv {path};
+        csv << "timestamp,is_snapshot,is_bid,price,qty\n"
+            << "1000,1,1,100,10\n"
+            << "1000,1,0,101,10\n";
+    }
+
+    SubmitOnceNativeL2Strategy strategy {lob::Side::Buy, 101.0, 3U};
+    lob::L2BacktestEngine engine {strategy, lob::L2BacktestEngine::Config {
+        .latency_ns = 100U,
+        .quantity_scale = 1.0,
+        .max_book_levels_per_side = 10U,
+    }};
+
+    const lob::L2BacktestEngine::Result result = engine.run(path);
+
+    EXPECT_EQ(strategy.fills, 1U);
+    EXPECT_EQ(result.execution.taker_fills_count, 1U);
+    EXPECT_EQ(result.last_fill_timestamp, 1100U);
+    EXPECT_EQ(result.final_position, 3);
+
+    std::filesystem::remove(path);
+}
+
+TEST(L2BacktestEngineTest, RecordsFeatureRowsForMlExports) {
+    const std::filesystem::path path = std::filesystem::temp_directory_path() / "l2_backtest_features.csv";
+    {
+        std::ofstream csv {path};
+        csv << "timestamp,is_snapshot,is_bid,price,qty\n"
+            << "1000,1,1,100,2\n"
+            << "1000,1,0,101,3\n"
+            << "2000,0,1,100,4\n"
+            << "2000,0,0,101,6\n";
+    }
+
+    CountingNativeL2Strategy strategy {};
+    lob::L2BacktestEngine engine {strategy, lob::L2BacktestEngine::Config {
+        .quantity_scale = 1.0,
+        .max_book_levels_per_side = 10U,
+        .record_features = true,
+        .feature_reserve = 2U,
+    }};
+
+    const lob::L2BacktestEngine::Result result = engine.run(path);
+
+    ASSERT_EQ(result.features.size(), 2U);
+    EXPECT_EQ(result.features[0].timestamp, 1000U);
+    EXPECT_DOUBLE_EQ(result.features[0].best_bid, 100.0);
+    EXPECT_DOUBLE_EQ(result.features[0].best_ask, 101.0);
+    EXPECT_DOUBLE_EQ(result.features[0].bid_qty_1, 2.0);
+    EXPECT_DOUBLE_EQ(result.features[0].ask_qty_1, 3.0);
+    EXPECT_NEAR(result.features[0].imbalance_1, -0.2, 1e-12);
+    EXPECT_EQ(result.features[1].timestamp, 2000U);
+    EXPECT_DOUBLE_EQ(result.features[1].bid_qty_1, 4.0);
+    EXPECT_DOUBLE_EQ(result.features[1].ask_qty_1, 6.0);
+
+    std::filesystem::remove(path);
 }
 
 TEST(EventMergerTest, MergesSmallStreamSetWithFastPath) {

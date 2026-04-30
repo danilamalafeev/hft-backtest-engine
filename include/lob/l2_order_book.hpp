@@ -179,6 +179,24 @@ public:
         return asks_.empty() ? 0.0 : asks_.front().price;
     }
 
+    [[nodiscard]] double effective_best_bid() const noexcept {
+        for (const Level& level : bids_) {
+            if (level.effective_qty() > 0.0) {
+                return level.price;
+            }
+        }
+        return 0.0;
+    }
+
+    [[nodiscard]] double effective_best_ask() const noexcept {
+        for (const Level& level : asks_) {
+            if (level.effective_qty() > 0.0) {
+                return level.price;
+            }
+        }
+        return 0.0;
+    }
+
     // --- O(1) accumulator accessors ---
 
     [[nodiscard]] double bid_total_qty() const noexcept { return bid_total_qty_; }
